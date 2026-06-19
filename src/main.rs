@@ -1,6 +1,5 @@
-use std::{collections::HashMap, error::Error, io::Cursor, sync::LazyLock};
+use std::collections::HashMap;
 
-use ab_glyph::FontRef;
 use axum::{
     Router,
     extract::Query,
@@ -8,17 +7,13 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
-use image::{ImageReader, codecs::avif::AvifEncoder};
 use tokio::net::TcpListener;
 
-use crate::fnaf::{FnafOpts, add_text};
+use crate::fnaf::{FnafOpts, try_image};
+
+const INVALID_TEXT_ERROR: &str = "error: no text";
 
 mod fnaf;
-
-static FONT: LazyLock<FontRef<'static>> = LazyLock::new(|| {
-    FontRef::try_from_slice(include_bytes!("../NotoSerifDisplay.otf")).expect("font to be valid")
-});
-const INVALID_TEXT_ERROR: &str = "error: no text";
 
 #[tokio::main]
 async fn main() {
@@ -30,7 +25,12 @@ async fn main() {
 
 async fn generate(Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    match try_image(params).await {
+    let text = params.get("text").map_or(INVALID_TEXT_ERROR, |v| v);
+    let bottom = params.get("bottom").map_or("0", |v| v) == "1";
+
+    let opts = FnafOpts { text, bottom };
+
+    match try_image(opts) {
         Ok(bytes) => {
             headers.insert(
                 header::CONTENT_TYPE,
@@ -50,21 +50,4 @@ async fn generate(Query(params): Query<HashMap<String, String>>) -> impl IntoRes
             )
         }
     }
-}
-
-async fn try_image(params: HashMap<String, String>) -> Result<Vec<u8>, Box<dyn Error>> {
-    let mut image = ImageReader::open("fnaf.png")?.decode()?;
-    // weird map thing i have to turn &String into &str but unwrap_else doesnt do that
-    let text = params.get("text").map_or(INVALID_TEXT_ERROR, |v| v);
-    let bottom = params.get("bottom").map_or("0", |v| v) == "1";
-
-    add_text(&mut image, &*FONT, FnafOpts { text, bottom })?;
-
-    let mut bytes: Vec<u8> = vec![];
-    image.write_with_encoder(AvifEncoder::new_with_speed_quality(
-        Cursor::new(&mut bytes),
-        8,
-        70,
-    ))?;
-    Ok(bytes)
 }

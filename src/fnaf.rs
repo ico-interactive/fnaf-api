@@ -1,11 +1,17 @@
-use std::error::Error;
+use std::{error::Error, io::Cursor, sync::LazyLock};
 
 use ab_glyph::{FontRef, PxScale};
-use image::{DynamicImage, GenericImage, GenericImageView, Rgba};
+use image::{
+    DynamicImage, GenericImage, GenericImageView, ImageReader, Rgba, codecs::avif::AvifEncoder,
+};
 use imageproc::{
     drawing::{draw_text_mut, text_size},
     morphology::dilate_mut,
 };
+
+static FONT: LazyLock<FontRef<'static>> = LazyLock::new(|| {
+    FontRef::try_from_slice(include_bytes!("../NotoSerifDisplay.otf")).expect("font to be valid")
+});
 
 const MARGIN: f32 = 2.0;
 
@@ -14,11 +20,21 @@ pub struct FnafOpts<'a> {
     pub bottom: bool,
 }
 
-pub fn add_text(
-    image: &mut DynamicImage,
-    font: &FontRef,
-    opts: FnafOpts,
-) -> Result<(), Box<dyn Error>> {
+pub fn try_image(opts: FnafOpts) -> Result<Vec<u8>, Box<dyn Error>> {
+    let mut image = ImageReader::open("fnaf.png")?.decode()?;
+
+    add_text(&mut image, &*FONT, opts);
+
+    let mut bytes: Vec<u8> = vec![];
+    image.write_with_encoder(AvifEncoder::new_with_speed_quality(
+        Cursor::new(&mut bytes),
+        8,
+        70,
+    ))?;
+    Ok(bytes)
+}
+
+fn add_text(image: &mut DynamicImage, font: &FontRef, opts: FnafOpts) {
     let (width, height) = image.dimensions();
 
     let naive_scale = PxScale::from(150.0);
@@ -46,7 +62,6 @@ pub fn add_text(
         Rgba([0, 0, 0, 255]),
         (scale.x * 0.015) as u8,
     );
-    Ok(())
 }
 
 fn get_correct_scale(
