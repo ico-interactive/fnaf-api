@@ -23,7 +23,7 @@ pub struct FnafOpts<'a> {
 pub fn try_image(opts: FnafOpts) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut image = ImageReader::open("fnaf.png")?.decode()?;
 
-    add_text(&mut image, &*FONT, opts);
+    add_text(&mut image, &FONT, opts);
 
     let mut bytes: Vec<u8> = vec![];
     image.write_with_encoder(AvifEncoder::new_with_speed_quality(
@@ -38,10 +38,10 @@ fn add_text(image: &mut DynamicImage, font: &FontRef, opts: FnafOpts) {
     let (width, height) = image.dimensions();
 
     let naive_scale = PxScale::from(150.0);
-    let scale = get_correct_scale(&opts.text, naive_scale, (width, height), font);
+    let scale = get_correct_scale(opts.text, naive_scale, (width, height), font);
 
     let (text_width, text_height) = {
-        let size = text_size(scale, font, &opts.text);
+        let size = text_size(scale, font, opts.text);
         (size.0.min(width), size.1.min(height))
     };
     let text_start_x = ((width - text_width) / 2) as i32;
@@ -58,7 +58,7 @@ fn add_text(image: &mut DynamicImage, font: &FontRef, opts: FnafOpts) {
         text_start_y,
         scale,
         font,
-        &opts.text,
+        opts.text,
         Rgba([0, 0, 0, 255]),
         (scale.x * 0.015) as u8,
     );
