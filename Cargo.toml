@@ -9,3 +9,7 @@ image = "0.25.10"
 ab_glyph = "0.2.32"
 axum = "0.8.9"
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
+
+# builds dependencies with the release profile
+[profile.dev.package."*"]
+opt-level = 3
