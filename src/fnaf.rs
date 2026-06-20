@@ -17,11 +17,18 @@ const MARGIN: f32 = 2.0;
 
 pub struct FnafOpts<'a> {
     pub text: &'a str,
+    pub custom_url: Option<&'a String>,
     pub bottom: bool,
 }
 
-pub fn try_image(opts: FnafOpts) -> Result<Vec<u8>, Box<dyn Error>> {
-    let mut image = ImageReader::open("fnaf.png")?.decode()?;
+pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
+    let mut image = if let Some(url) = opts.custom_url {
+        ImageReader::new(Cursor::new(reqwest::get(url).await?.bytes().await?))
+            .with_guessed_format()?
+            .decode()?
+    } else {
+        ImageReader::open("fnaf.png")?.decode()?
+    };
 
     add_text(&mut image, &FONT, opts);
 

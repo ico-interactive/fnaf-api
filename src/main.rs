@@ -26,11 +26,16 @@ async fn main() {
 async fn generate(Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
     let mut headers = HeaderMap::new();
     let text = params.get("text").map_or(INVALID_TEXT_ERROR, |v| v);
+    let custom_url = params.get("url");
     let bottom = params.get("bottom").map_or("0", |v| v) == "1";
 
-    let opts = FnafOpts { text, bottom };
+    let opts = FnafOpts {
+        text,
+        custom_url,
+        bottom,
+    };
 
-    match try_image(opts) {
+    match try_image(opts).await {
         Ok(bytes) => {
             headers.insert(
                 header::CONTENT_TYPE,
