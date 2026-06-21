@@ -2,6 +2,14 @@ name: fnaf
 services:
   api:
     container_name: fnaf-api
+    environment:
+      FACE_DIR: "/faces"
+    volumes:
+      - faces:/faces
     build:
       tags:
         - fnaf-api:0.2.3
+
+volumes:
+  faces:
+    driver: local

@@ -1,4 +1,10 @@
-use std::{error::Error, io::Cursor, sync::LazyLock};
+use std::{
+    env,
+    error::Error,
+    io::Cursor,
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 
 use ab_glyph::{FontRef, PxScale};
 use image::{
@@ -21,13 +27,20 @@ pub struct FnafOpts<'a> {
     pub bottom: bool,
 }
 
+fn get_local_image(image: &str) -> PathBuf {
+    Path::new(&env::var("FACE_DIR").unwrap_or(".".to_string()))
+        .join(image)
+        .to_path_buf()
+}
+
 pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
-    let mut image = if let Some(url) = opts.custom_url {
+    let url = opts.custom_url.map_or("fnaf.png", |v| v);
+    let mut image = if url.starts_with("http://") || url.starts_with("https://") {
         ImageReader::new(Cursor::new(reqwest::get(url).await?.bytes().await?))
             .with_guessed_format()?
             .decode()?
     } else {
-        ImageReader::open("fnaf.png")?.decode()?
+        ImageReader::open(get_local_image(url))?.decode()?
     };
 
     add_text(&mut image, &FONT, opts);
