@@ -19,6 +19,7 @@ static FONT: LazyLock<FontRef<'static>> = LazyLock::new(|| {
     FontRef::try_from_slice(include_bytes!("../NotoSerifDisplay.otf")).expect("font to be valid")
 });
 
+const DEFAULT_IMAGE: &str = "fnaf.png";
 const MARGIN: f32 = 2.0;
 
 pub struct FnafOpts<'a> {
@@ -27,20 +28,25 @@ pub struct FnafOpts<'a> {
     pub bottom: bool,
 }
 
-fn get_local_image(image: &str) -> PathBuf {
+fn get_local_image(image: &Path) -> PathBuf {
+    let file_name = image.file_name().map_or(DEFAULT_IMAGE, |v| {
+        v.to_str().expect("os string to be convertable")
+    });
     Path::new(&env::var("FACE_DIR").unwrap_or(".".to_string()))
-        .join(image)
+        .join(file_name)
         .to_path_buf()
 }
 
 pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
-    let url = opts.custom_url.map_or("fnaf.png", |v| v);
+    let url = opts.custom_url.map_or(DEFAULT_IMAGE, |v| v);
+
     let mut image = if url.starts_with("http://") || url.starts_with("https://") {
         ImageReader::new(Cursor::new(reqwest::get(url).await?.bytes().await?))
             .with_guessed_format()?
             .decode()?
     } else {
-        ImageReader::open(get_local_image(url))?.decode()?
+        let path = get_local_image(&Path::new(url));
+        ImageReader::open(path)?.decode()?
     };
 
     add_text(&mut image, &FONT, opts);
