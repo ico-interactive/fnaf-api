@@ -1,7 +1,7 @@
-name: fnaf-api
-
+name: fnaf
 services:
-  server:
+  api:
+    container_name: fnaf-api
     build:
       tags:
         - fnaf-api:0.2.3
