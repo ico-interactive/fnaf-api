@@ -45,7 +45,7 @@ pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
             .with_guessed_format()?
             .decode()?
     } else {
-        let path = get_local_image(&Path::new(url));
+        let path = get_local_image(Path::new(url));
         ImageReader::open(path)?.decode()?
     };
 
