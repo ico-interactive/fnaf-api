@@ -23,17 +23,21 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn generate(Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
-    let mut headers = HeaderMap::new();
+fn get_opts<'a>(params: &'a HashMap<String, String>) -> FnafOpts<'a> {
     let text = params.get("text").map_or(INVALID_TEXT_ERROR, |v| v);
     let custom_url = params.get("url");
     let bottom = params.get("bottom").map_or("0", |v| v) == "1";
 
-    let opts = FnafOpts {
+    FnafOpts {
         text,
         custom_url,
         bottom,
-    };
+    }
+}
+
+async fn generate(Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
+    let mut headers = HeaderMap::new();
+    let opts = get_opts(&params);
 
     match try_image(opts).await {
         Ok(bytes) => {
