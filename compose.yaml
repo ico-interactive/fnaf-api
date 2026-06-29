@@ -4,11 +4,15 @@ services:
     container_name: fnaf-api
     environment:
       FACE_DIR: "/faces"
+      FNAF_HOST: "0.0.0.0"
+      FNAF_PORT: "9638"
+      FNAF_ENCODER_SPEED: "8"
+      FNAF_ENCODER_QUALITY: "70"
     volumes:
       - faces:/faces
     build:
       tags:
-        - fnaf-api:0.2.3
+        - fnaf-api:0.2.4
 
 volumes:
   faces:

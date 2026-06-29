@@ -516,7 +516,7 @@ dependencies = [
 
 [[package]]
 name = "fnaf-api"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "ab_glyph",
  "axum",

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, env};
 
 use axum::{
     Router,
@@ -19,7 +19,13 @@ mod fnaf;
 async fn main() {
     let app = Router::<()>::new().route("/", get(generate));
 
-    let listener = TcpListener::bind("0.0.0.0:9638").await.unwrap();
+    let host = env::var("FNAF_HOST").unwrap_or("0.0.0.0".to_string());
+    let port = env::var("FNAF_PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(9638);
+
+    let listener = TcpListener::bind((host, port)).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
