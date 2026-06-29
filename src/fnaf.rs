@@ -50,13 +50,10 @@ pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
     } else {
         let path = get_local_image(Path::new(url));
         ImageReader::open(path)?.decode()?
-    };
+    }
+    .to_rgba8();
 
-    add_text(
-        image.as_mut_rgba8().ok_or("expected rgba8 image")?,
-        &FONT,
-        opts,
-    );
+    add_text(&mut image, &FONT, opts);
 
     let mut bytes: Vec<u8> = vec![];
     image.write_with_encoder(AvifEncoder::new_with_speed_quality(
