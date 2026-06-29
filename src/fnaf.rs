@@ -9,8 +9,10 @@ use std::{
 use ab_glyph::{FontRef, PxScale};
 use image::{
     DynamicImage, GenericImage, GenericImageView, ImageReader, Rgba, codecs::avif::AvifEncoder,
+    imageops::blur,
 };
 use imageproc::{
+    distance_transform::Norm,
     drawing::{draw_text_mut, text_size},
     morphology::dilate_mut,
 };
@@ -120,11 +122,7 @@ pub fn draw_text_with_border(
     draw_text_mut(&mut image2, color, x, y, scale, font, text);
 
     let mut image2 = image2.to_luma8();
-    dilate_mut(
-        &mut image2,
-        imageproc::distance_transform::Norm::LInf,
-        outline_width,
-    );
+    dilate_mut(&mut image2, Norm::LInf, outline_width);
 
     for x in 0..image2.width() {
         for y in 0..image2.height() {
@@ -134,5 +132,8 @@ pub fn draw_text_with_border(
             }
         }
     }
+
+    *canvas = blur(canvas, 0.7).into();
+
     draw_text_mut(canvas, color, x, y, scale, font, text);
 }
