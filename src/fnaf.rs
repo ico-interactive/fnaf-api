@@ -7,11 +7,10 @@ use std::{
 };
 
 use ab_glyph::{FontRef, PxScale};
-use image::{
-    DynamicImage, GenericImage, GenericImageView, ImageReader, Rgba, codecs::avif::AvifEncoder,
-    imageops::blur,
-};
+use image::ImageReader;
+use image::{DynamicImage, GenericImage, Rgba, RgbaImage, codecs::avif::AvifEncoder};
 use imageproc::{
+    compose::overlay_mut,
     distance_transform::Norm,
     drawing::{draw_text_mut, text_size},
     morphology::dilate_mut,
@@ -26,8 +25,10 @@ const MARGIN: f32 = 2.0;
 
 pub struct FnafOpts<'a> {
     pub text: &'a str,
+    pub bottom_text: &'a str,
+    pub top_text: &'a str,
+
     pub custom_url: Option<&'a String>,
-    pub bottom: bool,
 }
 
 fn get_local_image(image: &Path) -> PathBuf {
@@ -51,7 +52,11 @@ pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
         ImageReader::open(path)?.decode()?
     };
 
-    add_text(&mut image, &FONT, opts);
+    add_text(
+        image.as_mut_rgba8().ok_or("expected rgba8 image")?,
+        &FONT,
+        opts,
+    );
 
     let mut bytes: Vec<u8> = vec![];
     image.write_with_encoder(AvifEncoder::new_with_speed_quality(
@@ -62,34 +67,64 @@ pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
     Ok(bytes)
 }
 
-fn add_text(image: &mut DynamicImage, font: &FontRef, opts: FnafOpts) {
+fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
     let (width, height) = image.dimensions();
 
+    let texts = [opts.text, opts.bottom_text, opts.top_text];
     let naive_scale = PxScale::from(150.0);
-    let scale = get_correct_scale(opts.text, naive_scale, (width, height), font);
 
-    let (text_width, text_height) = {
+    // usize thats either 0, 1 or 2, corresponding to the index of the text which is the longest
+    let largest_text = texts
+        .iter()
+        .enumerate()
+        .max_by_key(|&(_, value)| text_size(naive_scale, font, value))
+        .map(|(idx, _)| idx)
+        .unwrap_or(0);
+
+    let scale = get_correct_scale(texts[largest_text], naive_scale, (width, height), font);
+
+    let mut text_pos: [(i32, i32); 3] = [(0, 0); 3];
+
+    let (middle_text_width, middle_text_height) = {
         let size = text_size(scale, font, opts.text);
         (size.0.min(width), size.1.min(height))
     };
-    let text_start_x = ((width - text_width) / 2) as i32;
-    let text_start_y = if opts.bottom {
-        (height - text_height) as i32
-    } else {
-        ((height - text_height) / 2) as i32
-    };
-
-    draw_text_with_border(
-        image,
-        Rgba([255, 255, 255, 255]),
-        text_start_x,
-        text_start_y,
-        scale,
-        font,
-        opts.text,
-        Rgba([0, 0, 0, 255]),
-        (scale.x * 0.015) as u8,
+    text_pos[0] = (
+        ((width - middle_text_width) / 2) as i32,
+        ((height - middle_text_height) / 2) as i32,
     );
+
+    let text_width = {
+        let size = text_size(scale, font, opts.bottom_text);
+        size.0.min(width)
+    };
+    text_pos[1] = (
+        ((width - text_width) / 2) as i32,
+        text_pos[0].1 + middle_text_height as i32,
+    );
+
+    let (text_width, text_height) = {
+        let size = text_size(scale, font, opts.top_text);
+        (size.0.min(width), size.1.min(height))
+    };
+    text_pos[2] = (
+        ((width - text_width) / 2) as i32,
+        text_pos[0].1 - text_height as i32,
+    );
+
+    text_pos.iter().zip(texts.iter()).for_each(|(pos, text)| {
+        draw_text_with_border(
+            image,
+            Rgba([255, 255, 255, 255]),
+            pos.0,
+            pos.1,
+            scale,
+            font,
+            text,
+            Rgba([0, 0, 0, 255]),
+            (scale.x * 0.015) as u8,
+        );
+    });
 }
 
 fn get_correct_scale(
@@ -107,7 +142,7 @@ fn get_correct_scale(
 // https://github.com/silvia-odwyer/gdl/blob/421c8df718ad32f66275d178edec56ec653caff9/crate/src/text.rs#L23
 #[allow(clippy::too_many_arguments)]
 pub fn draw_text_with_border(
-    canvas: &mut DynamicImage,
+    canvas: &mut RgbaImage,
     color: Rgba<u8>,
     x: i32,
     y: i32,
@@ -124,16 +159,24 @@ pub fn draw_text_with_border(
     let mut image2 = image2.to_luma8();
     dilate_mut(&mut image2, Norm::LInf, outline_width);
 
+    let mut precanvas = DynamicImage::new_rgba8(canvas.width(), canvas.height());
+
     for x in 0..image2.width() {
         for y in 0..image2.height() {
             let pixval = 255 - image2.get_pixel(x, y).0[0];
             if pixval != 255 {
-                canvas.put_pixel(x, y, outline_color);
+                precanvas.put_pixel(x, y, outline_color);
             }
         }
     }
 
-    *canvas = blur(canvas, 0.7).into();
+    precanvas = precanvas.blur(0.7);
 
-    draw_text_mut(canvas, color, x, y, scale, font, text);
+    draw_text_mut(&mut precanvas, color, x, y, scale, font, text);
+    overlay_mut(
+        canvas,
+        precanvas.as_rgba8().expect("precanvas to be rgba8"),
+        0,
+        0,
+    );
 }

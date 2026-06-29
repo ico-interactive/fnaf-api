@@ -25,13 +25,17 @@ async fn main() {
 
 fn get_opts<'a>(params: &'a HashMap<String, String>) -> FnafOpts<'a> {
     let text = params.get("text").map_or(INVALID_TEXT_ERROR, |v| v);
+    let bottom_text = params.get("bottom_text").map_or("", |v| v);
+    let top_text = params.get("top_text").map_or("", |v| v);
+
     let custom_url = params.get("url");
-    let bottom = params.get("bottom").map_or("0", |v| v) == "1";
 
     FnafOpts {
         text,
+        bottom_text,
+        top_text,
+
         custom_url,
-        bottom,
     }
 }
 
