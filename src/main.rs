@@ -36,8 +36,7 @@ fn get_opts<'a>(params: &'a HashMap<String, String>) -> FnafOpts<'a> {
 
     let outline_width = params
         .get("outline_width")
-        .ok_or(())
-        .and_then(|v| v.parse().map_err(|_| ()))
+        .and_then(|v| v.parse().ok())
         .unwrap_or(1);
     let custom_url = params.get("url");
 
