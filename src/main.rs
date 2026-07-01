@@ -34,6 +34,11 @@ fn get_opts<'a>(params: &'a HashMap<String, String>) -> FnafOpts<'a> {
     let bottom_text = params.get("bottom_text").map_or("", |v| v);
     let top_text = params.get("top_text").map_or("", |v| v);
 
+    let outline_width = params
+        .get("outline_width")
+        .ok_or(())
+        .and_then(|v| v.parse().map_err(|_| ()))
+        .unwrap_or(1);
     let custom_url = params.get("url");
 
     FnafOpts {
@@ -41,6 +46,7 @@ fn get_opts<'a>(params: &'a HashMap<String, String>) -> FnafOpts<'a> {
         bottom_text,
         top_text,
 
+        outline_width,
         custom_url,
     }
 }

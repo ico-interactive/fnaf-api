@@ -28,6 +28,7 @@ pub struct FnafOpts<'a> {
     pub bottom_text: &'a str,
     pub top_text: &'a str,
 
+    pub outline_width: u8,
     pub custom_url: Option<&'a String>,
 }
 
@@ -125,7 +126,7 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
             font,
             text,
             Rgba([0, 0, 0, 255]),
-            (scale.x * 0.015) as u8,
+            (scale.x * 0.015) as u8 * opts.outline_width,
         );
     });
 }
@@ -155,6 +156,7 @@ pub fn draw_text_with_border(
     outline_color: Rgba<u8>,
     outline_width: u8,
 ) {
+    println!("outline width is {outline_width}");
     let mut image2: DynamicImage = DynamicImage::new_luma8(canvas.width(), canvas.height());
 
     draw_text_mut(&mut image2, color, x, y, scale, font, text);
