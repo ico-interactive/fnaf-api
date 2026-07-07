@@ -98,13 +98,17 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
         ((height - middle_text_height) / 2) as i32,
     );
 
-    let text_width = {
+    let (text_width, text_height) = {
         let size = text_size(scale, font, opts.bottom_text);
-        size.0.min(width)
+        (size.0.min(width), size.1.min(height))
     };
     text_pos[1] = (
         ((width - text_width) / 2) as i32,
-        text_pos[0].1 + middle_text_height as i32,
+        if !opts.text.is_empty() {
+            text_pos[0].1 + middle_text_height as i32
+        } else {
+            (height - text_height) as i32
+        },
     );
 
     let (text_width, text_height) = {
@@ -113,7 +117,11 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
     };
     text_pos[2] = (
         ((width - text_width) / 2) as i32,
-        text_pos[0].1 - text_height as i32,
+        if !opts.text.is_empty() {
+            text_pos[0].1 - text_height as i32
+        } else {
+            0
+        },
     );
 
     text_pos.iter().zip(texts.iter()).for_each(|(pos, text)| {
@@ -156,7 +164,6 @@ pub fn draw_text_with_border(
     outline_color: Rgba<u8>,
     outline_width: u8,
 ) {
-    println!("outline width is {outline_width}");
     let mut image2: DynamicImage = DynamicImage::new_luma8(canvas.width(), canvas.height());
 
     draw_text_mut(&mut image2, color, x, y, scale, font, text);

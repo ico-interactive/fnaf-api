@@ -12,7 +12,7 @@ services:
       - faces:/faces
     build:
       tags:
-        - fnaf-api:0.2.5
+        - fnaf-api:0.2.6
 
 volumes:
   faces:

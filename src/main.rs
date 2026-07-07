@@ -30,14 +30,19 @@ async fn main() {
 }
 
 fn get_opts<'a>(params: &'a HashMap<String, String>) -> FnafOpts<'a> {
-    let text = params.get("text").map_or(INVALID_TEXT_ERROR, |v| v);
+    let mut text = params.get("text").map_or("", |v| v);
     let bottom_text = params.get("bottom_text").map_or("", |v| v);
     let top_text = params.get("top_text").map_or("", |v| v);
+
+    if text.is_empty() && bottom_text.is_empty() && top_text.is_empty() {
+        text = INVALID_TEXT_ERROR;
+    };
 
     let outline_width = params
         .get("outline_width")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1);
+
     let custom_url = params.get("url");
 
     FnafOpts {
