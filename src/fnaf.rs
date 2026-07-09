@@ -8,7 +8,7 @@ use std::{
 
 use ab_glyph::{FontRef, PxScale};
 use image::ImageReader;
-use image::{DynamicImage, GenericImage, Rgba, RgbaImage, codecs::avif::AvifEncoder};
+use image::{DynamicImage, GenericImage, Rgba, RgbaImage};
 use imageproc::{
     compose::overlay_mut,
     distance_transform::Norm,
@@ -56,18 +56,16 @@ pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
 
     add_text(&mut image, &FONT, opts);
 
-    let mut bytes: Vec<u8> = vec![];
-    image.write_with_encoder(AvifEncoder::new_with_speed_quality(
-        Cursor::new(&mut bytes),
-        env::var("FNAF_ENCODER_SPEED")
-            .ok()
-            .and_then(|p| p.parse().ok())
-            .unwrap_or(8),
-        env::var("FNAF_ENCODER_QUALITY")
-            .ok()
-            .and_then(|p| p.parse().ok())
-            .unwrap_or(70),
-    ))?;
+    let encoder = webp::Encoder::from_rgba(&image, image.width(), image.height());
+    let bytes = encoder
+        .encode(
+            env::var("FNAF_ENCODER_QUALITY")
+                .ok()
+                .and_then(|v| v.parse::<f32>().ok())
+                .unwrap_or(70.0),
+        )
+        .to_vec();
+
     Ok(bytes)
 }
 

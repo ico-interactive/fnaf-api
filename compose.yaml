@@ -6,13 +6,12 @@ services:
       FACE_DIR: "/faces"
       FNAF_HOST: "0.0.0.0"
       FNAF_PORT: "9638"
-      FNAF_ENCODER_SPEED: "8"
-      FNAF_ENCODER_QUALITY: "70"
+      FNAF_ENCODER_QUALITY: "70.0"
     volumes:
       - faces:/faces
     build:
       tags:
-        - fnaf-api:0.2.7
+        - fnaf-api:0.2.8
 
 volumes:
   faces:

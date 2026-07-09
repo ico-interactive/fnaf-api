@@ -1,6 +1,6 @@
 [package]
 name = "fnaf-api"
-version = "0.2.7"
+version = "0.2.8"
 edition = "2024"
 
 [dependencies]
@@ -10,6 +10,7 @@ ab_glyph = "0.2.32"
 axum = "0.8.9"
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
 reqwest = "0.13.4"
+webp = "0.3.1"
 
 # builds dependencies with the release profile
 [profile.dev.package."*"]
