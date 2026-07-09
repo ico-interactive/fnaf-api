@@ -88,7 +88,7 @@ async fn generate(Query(params): Query<HashMap<String, String>>) -> Response {
             let mut headers = HeaderMap::new();
             headers.insert(
                 header::CONTENT_TYPE,
-                "image/avif".parse().expect("type to be parsable"),
+                "image/webp".parse().expect("type to be parsable"),
             );
             (StatusCode::OK, headers, bytes).into_response()
         }
