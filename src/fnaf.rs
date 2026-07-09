@@ -19,6 +19,8 @@ use imageproc::{
 static FONT: LazyLock<FontRef<'static>> = LazyLock::new(|| {
     FontRef::try_from_slice(include_bytes!("../NotoSerifDisplay.otf")).expect("font to be valid")
 });
+pub static FACE_PATH: LazyLock<String> =
+    LazyLock::new(|| env::var("FACE_DIR").unwrap_or(".".to_string()));
 
 const DEFAULT_IMAGE: &str = "fnaf.png";
 const MARGIN: f32 = 2.0;
@@ -36,9 +38,7 @@ fn get_local_image(image: &Path) -> PathBuf {
     let file_name = image.file_name().map_or(DEFAULT_IMAGE, |v| {
         v.to_str().expect("os string to be convertable")
     });
-    Path::new(&env::var("FACE_DIR").unwrap_or(".".to_string()))
-        .join(file_name)
-        .to_path_buf()
+    Path::new(&*FACE_PATH).join(file_name).to_path_buf()
 }
 
 pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
