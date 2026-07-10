@@ -8,11 +8,13 @@ use std::{
 
 use ab_glyph::{FontRef, PxScale};
 use image::ImageReader;
-use image::{DynamicImage, GenericImage, Rgba, RgbaImage};
+use image::{GrayImage, Rgba, RgbaImage, buffer::ConvertBuffer};
 use imageproc::{
     compose::overlay_mut,
     distance_transform::Norm,
-    drawing::{draw_text_mut, text_size},
+    drawing::{draw_text, text_size},
+    filter::gaussian_blur_f32,
+    geometric_transformations::{Border, Interpolation, Projection, warp},
     morphology::dilate_mut,
 };
 
@@ -162,31 +164,51 @@ pub fn draw_text_with_border(
     outline_color: Rgba<u8>,
     outline_width: u8,
 ) {
-    let mut image2: DynamicImage = DynamicImage::new_luma8(canvas.width(), canvas.height());
+    // intialize text width / height including the needed space of the outlines
+    let (text_width, text_height) = {
+        let text_bbox = text_size(scale, font, text);
+        (
+            text_bbox.0 + (outline_width as u32 * 2),
+            text_bbox.1 + (outline_width as u32 * 2),
+        )
+    };
 
-    draw_text_mut(&mut image2, color, x, y, scale, font, text);
+    // draw the text element
+    let text_raw = draw_text(
+        &RgbaImage::new(text_width, text_height),
+        color,
+        outline_width as i32,
+        outline_width as i32,
+        scale,
+        font,
+        text,
+    );
 
-    let mut image2 = image2.to_luma8();
-    dilate_mut(&mut image2, Norm::LInf, outline_width);
-
-    let mut precanvas = DynamicImage::new_rgba8(canvas.width(), canvas.height());
-
-    for x in 0..image2.width() {
-        for y in 0..image2.height() {
-            let pixval = 255 - image2.get_pixel(x, y).0[0];
+    // dilate to outline_width -> color it with outline_color -> blur for aa effect
+    // TODO: is it needed after i do the proejction?
+    let mut text_dilated: GrayImage = text_raw.convert();
+    let mut text_to_draw = RgbaImage::new(text_width, text_height);
+    dilate_mut(&mut text_dilated, Norm::LInf, outline_width);
+    for x in 0..text_dilated.width() {
+        for y in 0..text_dilated.height() {
+            let pixval = 255 - text_dilated.get_pixel(x, y).0[0];
             if pixval != 255 {
-                precanvas.put_pixel(x, y, outline_color);
+                text_to_draw.put_pixel(x, y, outline_color);
             }
         }
     }
+    text_to_draw = gaussian_blur_f32(&text_to_draw, 0.7);
 
-    precanvas = precanvas.blur(0.7);
+    // draw actual text on top of outline
+    overlay_mut(&mut text_to_draw, &text_raw, 0, 0);
 
-    draw_text_mut(&mut precanvas, color, x, y, scale, font, text);
-    overlay_mut(
-        canvas,
-        precanvas.as_rgba8().expect("precanvas to be rgba8"),
-        0,
-        0,
+    // scale text object and overlay on canvas
+    let projection_op = Projection::scale(1.0 / 3.0, 1.0 / 3.0);
+    let text_transformed = warp(
+        &text_to_draw,
+        projection_op,
+        Interpolation::Bilinear,
+        Border::Constant(Rgba([0, 0, 0, 0])),
     );
+    overlay_mut(canvas, &text_transformed, 0, 0);
 }
