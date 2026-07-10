@@ -27,6 +27,18 @@ pub static FACE_PATH: LazyLock<String> =
 const DEFAULT_IMAGE: &str = "fnaf.png";
 const MARGIN: f32 = 2.0;
 
+#[derive(Clone)]
+pub enum TextPosition {
+    Top = 0,
+    Middle = 1,
+    Bottom = 2,
+}
+
+pub struct TextElement<'a> {
+    position: TextPosition,
+    content: &'a str,
+}
+
 pub struct FnafOpts<'a> {
     pub text: &'a str,
     pub bottom_text: &'a str,
@@ -74,65 +86,45 @@ pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
 fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
     let (width, height) = image.dimensions();
 
-    let texts = [opts.text, opts.bottom_text, opts.top_text];
+    let texts = [
+        TextElement {
+            position: TextPosition::Top,
+            content: opts.top_text,
+        },
+        TextElement {
+            position: TextPosition::Middle,
+            content: opts.text,
+        },
+        TextElement {
+            position: TextPosition::Bottom,
+            content: opts.bottom_text,
+        },
+    ];
     let naive_scale = PxScale::from(150.0);
 
     // usize thats either 0, 1 or 2, corresponding to the index of the text which is the longest
     let largest_text = texts
         .iter()
         .enumerate()
-        .max_by_key(|&(_, value)| text_size(naive_scale, font, value))
+        .max_by_key(|&(_, value)| text_size(naive_scale, font, value.content))
         .map(|(idx, _)| idx)
         .unwrap_or(0);
 
-    let scale = get_correct_scale(texts[largest_text], naive_scale, (width, height), font);
-
-    let mut text_pos: [(i32, i32); 3] = [(0, 0); 3];
-
-    let (middle_text_width, middle_text_height) = {
-        let size = text_size(scale, font, opts.text);
-        (size.0.min(width), size.1.min(height))
-    };
-    text_pos[0] = (
-        ((width - middle_text_width) / 2) as i32,
-        ((height - middle_text_height) / 2) as i32,
+    let scale = get_correct_scale(
+        texts[largest_text].content,
+        naive_scale,
+        (width, height),
+        font,
     );
 
-    let (text_width, text_height) = {
-        let size = text_size(scale, font, opts.bottom_text);
-        (size.0.min(width), size.1.min(height))
-    };
-    text_pos[1] = (
-        ((width - text_width) / 2) as i32,
-        if !opts.text.is_empty() {
-            text_pos[0].1 + middle_text_height as i32
-        } else {
-            (height - text_height) as i32
-        },
-    );
-
-    let (text_width, text_height) = {
-        let size = text_size(scale, font, opts.top_text);
-        (size.0.min(width), size.1.min(height))
-    };
-    text_pos[2] = (
-        ((width - text_width) / 2) as i32,
-        if !opts.text.is_empty() {
-            text_pos[0].1 - text_height as i32
-        } else {
-            0
-        },
-    );
-
-    text_pos.iter().zip(texts.iter()).for_each(|(pos, text)| {
+    texts.iter().for_each(|text| {
         draw_text_with_border(
             image,
             Rgba([255, 255, 255, 255]),
-            pos.0,
-            pos.1,
+            text.position.clone(),
             scale,
             font,
-            text,
+            text.content,
             Rgba([0, 0, 0, 255]),
             (scale.x * 0.015) as u8 * opts.outline_width,
         );
@@ -156,14 +148,16 @@ fn get_correct_scale(
 pub fn draw_text_with_border(
     canvas: &mut RgbaImage,
     color: Rgba<u8>,
-    x: i32,
-    y: i32,
+    position: TextPosition,
     scale: PxScale,
     font: &FontRef,
     text: &str,
     outline_color: Rgba<u8>,
     outline_width: u8,
 ) {
+    if text.trim() == "" {
+        return;
+    }
     // intialize text width / height including the needed space of the outlines
     let (text_width, text_height) = {
         let text_bbox = text_size(scale, font, text);
@@ -172,6 +166,11 @@ pub fn draw_text_with_border(
             text_bbox.1 + (outline_width as u32 * 2),
         )
     };
+    let project_scale = f32::min(
+        canvas.width() as f32 / text_width as f32,
+        canvas.height() as f32 / 3.0 / text_height as f32,
+    );
+    let project_op = Projection::scale(project_scale, project_scale);
 
     // draw the text element
     let text_raw = draw_text(
@@ -185,7 +184,6 @@ pub fn draw_text_with_border(
     );
 
     // dilate to outline_width -> color it with outline_color -> blur for aa effect
-    // TODO: is it needed after i do the proejction?
     let mut text_dilated: GrayImage = text_raw.convert();
     let mut text_to_draw = RgbaImage::new(text_width, text_height);
     dilate_mut(&mut text_dilated, Norm::LInf, outline_width);
@@ -197,18 +195,23 @@ pub fn draw_text_with_border(
             }
         }
     }
-    text_to_draw = gaussian_blur_f32(&text_to_draw, 0.7);
+    // text_to_draw = gaussian_blur_f32(&text_to_draw, 0.7);
 
     // draw actual text on top of outline
     overlay_mut(&mut text_to_draw, &text_raw, 0, 0);
 
     // scale text object and overlay on canvas
-    let projection_op = Projection::scale(1.0 / 3.0, 1.0 / 3.0);
     let text_transformed = warp(
         &text_to_draw,
-        projection_op,
-        Interpolation::Bilinear,
+        project_op,
+        Interpolation::Bicubic,
         Border::Constant(Rgba([0, 0, 0, 0])),
     );
-    overlay_mut(canvas, &text_transformed, 0, 0);
+    overlay_mut(
+        canvas,
+        &text_transformed,
+        // ((canvas.width() - text_transformed.width()) as f32 * project_scale / 2.0) as u32,
+        0,
+        canvas.height() / 3 * position.clone() as u32,
+    );
 }
