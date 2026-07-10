@@ -212,6 +212,8 @@ pub fn draw_text_with_border(
         canvas,
         &text_transformed,
         ((canvas.width() as f32 - text_transformed.width() as f32) * project_scale / 2.0) as u32,
-        canvas.height() / 3 * position.clone() as u32,
+        (canvas.height() as f32 / 3.0 * position.clone() as u32 as f32  // <-- TODO: LMFAO WHAT IS THISSSSSSSSSSSSSSSS
+            + (canvas.height() as f32 / 3.0 - text_transformed.height() as f32 * project_scale)
+                / 2.0) as u32,
     );
 }
