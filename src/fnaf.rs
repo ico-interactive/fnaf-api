@@ -143,9 +143,20 @@ fn get_correct_scale(
     image_size: (u32, u32),
     font: &FontRef,
 ) -> PxScale {
-    let text_width = text_size(scale, font, text).0;
-    let factor = image_size.0 as f32 / text_width as f32;
-    PxScale::from(scale.x * factor - MARGIN)
+    let size = text_size(scale, font, text);
+    let sizes = [size.0, size.1];
+    let largest_dim = sizes
+        .iter()
+        .enumerate()
+        .max_by_key(|&(_, v)| v)
+        .map(|(idx, _)| idx)
+        .unwrap_or(0);
+    let scale = if largest_dim == 0 {
+        scale.x * image_size.0 as f32 / size.0 as f32
+    } else {
+        scale.y * image_size.1 as f32 / size.1 as f32
+    };
+    PxScale::from(scale - MARGIN)
 }
 
 // a modified version of:
