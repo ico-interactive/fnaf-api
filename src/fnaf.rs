@@ -122,7 +122,7 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
             image,
             Rgba([255, 255, 255, 255]),
             text.position.clone(),
-            scale,
+            PxScale::from(100.0),
             font,
             text.content,
             Rgba([0, 0, 0, 255]),
@@ -184,6 +184,7 @@ pub fn draw_text_with_border(
     );
 
     // dilate to outline_width -> color it with outline_color -> blur for aa effect
+    // TODO: i broke this, maybe move this after transform?
     let mut text_dilated: GrayImage = text_raw.convert();
     let mut text_to_draw = RgbaImage::new(text_width, text_height);
     dilate_mut(&mut text_dilated, Norm::LInf, outline_width);
@@ -195,7 +196,7 @@ pub fn draw_text_with_border(
             }
         }
     }
-    // text_to_draw = gaussian_blur_f32(&text_to_draw, 0.7);
+    text_to_draw = gaussian_blur_f32(&text_to_draw, 0.7);
 
     // draw actual text on top of outline
     overlay_mut(&mut text_to_draw, &text_raw, 0, 0);
@@ -210,8 +211,7 @@ pub fn draw_text_with_border(
     overlay_mut(
         canvas,
         &text_transformed,
-        // ((canvas.width() - text_transformed.width()) as f32 * project_scale / 2.0) as u32,
-        0,
+        ((canvas.width() as f32 - text_transformed.width() as f32) * project_scale / 2.0) as u32,
         canvas.height() / 3 * position.clone() as u32,
     );
 }
