@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: http://localhost:9638/?text=bbb&top_text=aaa&outline_width=1&url=https://picsum.photos/600
+  url: "{{base_url}}?text=bbb&top_text=aaa&outline_width=1&url=https://picsum.photos/600"
   params:
     - name: text
       value: bbb
@@ -13,16 +13,16 @@ http:
     - name: top_text
       value: aaa
       type: query
-    - name: bottom_text
-      value: hhhhhhh
-      type: query
-      disabled: true
     - name: outline_width
       value: "1"
       type: query
     - name: url
       value: https://picsum.photos/600
       type: query
+    - name: bottom_text
+      value: hhhhhhh
+      type: query
+      disabled: true
   auth: inherit
 
 settings:

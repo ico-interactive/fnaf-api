@@ -5,10 +5,16 @@ info:
 
 http:
   method: GET
-  url: http://localhost:9638/?text=bbb&outline_width=1&url=https://picsum.photos/600
+  url: "{{base_url}}?text=bbb&outline_width=1&url=https://picsum.photos/600"
   params:
     - name: text
       value: bbb
+      type: query
+    - name: outline_width
+      value: "1"
+      type: query
+    - name: url
+      value: https://picsum.photos/600
       type: query
     - name: top_text
       value: aaa
@@ -18,12 +24,6 @@ http:
       value: hhhhhhh
       type: query
       disabled: true
-    - name: outline_width
-      value: "1"
-      type: query
-    - name: url
-      value: https://picsum.photos/600
-      type: query
   auth: inherit
 
 settings:

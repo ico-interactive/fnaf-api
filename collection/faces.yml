@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: http://localhost:9638/faces
+  url: "{{base_url}}faces"
   auth: inherit
 
 settings:

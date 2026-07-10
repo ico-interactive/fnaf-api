@@ -1,0 +1,4 @@
+name: production
+variables:
+  - secret: true
+    name: base_url

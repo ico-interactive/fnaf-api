@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: http://localhost:9638/?text=bbb&top_text=aaa&bottom_text=hhhhhhh&outline_width=1&url=https://picsum.photos/1080/1920
+  url: "{{base_url}}?text=bbb&top_text=aaa&bottom_text=hhhhhhh&outline_width=1&url=https://picsum.photos/1080/1920"
   params:
     - name: text
       value: bbb
