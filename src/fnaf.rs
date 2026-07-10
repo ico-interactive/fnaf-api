@@ -32,6 +32,7 @@ pub enum TextPosition {
     Top = 0,
     Middle = 1,
     Bottom = 2,
+    Full = 3,
 }
 
 pub struct TextElement<'a> {
@@ -86,6 +87,7 @@ pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
 fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
     let (width, height) = image.dimensions();
 
+    // TODO: implement case for !opts.top_text && !opts.bottom_text to return TextElement with position: TextPosition::full
     let texts = [
         TextElement {
             position: TextPosition::Top,
