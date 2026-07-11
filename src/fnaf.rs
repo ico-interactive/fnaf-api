@@ -156,22 +156,17 @@ pub fn draw_text_with_border(
     row_idx: usize,
     rows_total: usize,
 ) {
-    // intialize text width / height including the needed space of the outlines
-    let text_bbox = text_size(text_element.scale, text_element.font, text_element.content);
-    let text_width = text_bbox.0 as f32 + (outline_width * 2) as f32;
-    let text_height = text_bbox.1 as f32 + (outline_width * 2) as f32;
-    let canvas_width = canvas.width() as f32;
-    let canvas_height = canvas.height() as f32;
-    let row_height = canvas_height / rows_total as f32;
-    let project_scale = f32::min(
-        canvas_width / text_width,
-        canvas_height / text_height / rows_total as f32,
+    // calculate bounding boxes
+    let mut text_bbox = text_size(text_element.scale, text_element.font, text_element.content);
+    text_bbox = (
+        text_bbox.0 + outline_width as u32 * 2,
+        text_bbox.1 + outline_width as u32 * 2,
     );
-    let project_op = Projection::scale(project_scale, project_scale);
+    let row_height = canvas.height() as f32 / rows_total as f32;
 
     // draw the raw text element
     let text_raw = draw_text(
-        &RgbaImage::new(text_width as u32, text_height as u32),
+        &RgbaImage::new(text_bbox.0, text_bbox.1),
         text_element.text_color,
         outline_width as i32,
         outline_width as i32,
@@ -183,7 +178,7 @@ pub fn draw_text_with_border(
     // draw the outline
     // dilate to outline_width -> color it with outline_color -> blur for aa effect
     let mut text_dilated: GrayImage = text_raw.convert();
-    let mut text_to_draw = RgbaImage::new(text_width as u32, text_height as u32);
+    let mut text_to_draw = RgbaImage::new(text_bbox.0, text_bbox.1);
     dilate_mut(&mut text_dilated, Norm::LInf, outline_width);
     for x in 0..text_dilated.width() {
         for y in 0..text_dilated.height() {
@@ -197,16 +192,21 @@ pub fn draw_text_with_border(
 
     // scale text_object and overlay on canvas
     overlay_mut(&mut text_to_draw, &text_raw, 0, 0);
+    let project_scale = f32::min(
+        canvas.width() as f32 / text_bbox.0 as f32,
+        canvas.height() as f32 / text_bbox.1 as f32 / rows_total as f32,
+    );
+    let project_operation = Projection::scale(project_scale, project_scale);
     let text_transformed = warp(
         &text_to_draw,
-        project_op,
+        project_operation,
         Interpolation::Bicubic,
         Border::Constant(Rgba([0; 4])),
     );
     overlay_mut(
         canvas,
         &text_transformed,
-        ((canvas_width - text_transformed.width() as f32) * project_scale / 2.0) as u32,
+        ((canvas.width() as f32 - text_transformed.width() as f32) * project_scale / 2.0) as u32,
         (row_height * row_idx as f32
             + (row_height - text_transformed.height() as f32 * project_scale) / 2.0) as u32,
     );
