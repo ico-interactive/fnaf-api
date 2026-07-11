@@ -2,6 +2,10 @@
 name = "fnaf-api"
 version = "0.3.0"
 edition = "2024"
+description = "api for fetching fnaf emojis"
+documentation = "https://github.com/ico-interactive/fnaf-api"
+homepage = "https://github.com/ico-interactive/fnaf-api"
+repository = "https://github.com/ico-interactive/fnaf-api"
 
 [dependencies]
 ab_glyph = "0.2.32"
