@@ -38,6 +38,7 @@ pub enum TextPosition {
 pub struct TextElement<'a> {
     position: TextPosition,
     content: &'a str,
+    scale: PxScale,
 }
 
 pub struct FnafOpts<'a> {
@@ -88,47 +89,36 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
     let (width, height) = image.dimensions();
 
     // TODO: implement case for !opts.top_text && !opts.bottom_text to return TextElement with position: TextPosition::full
-    let texts = [
+    let naive_scale = PxScale::from(150.0);
+    let mut texts = [
         TextElement {
             position: TextPosition::Top,
             content: opts.top_text,
+            scale: naive_scale,
         },
         TextElement {
             position: TextPosition::Middle,
             content: opts.text,
+            scale: naive_scale,
         },
         TextElement {
             position: TextPosition::Bottom,
             content: opts.bottom_text,
+            scale: naive_scale,
         },
     ];
-    let naive_scale = PxScale::from(150.0);
 
-    // usize thats either 0, 1 or 2, corresponding to the index of the text which is the longest
-    let largest_text = texts
-        .iter()
-        .enumerate()
-        .max_by_key(|&(_, value)| text_size(naive_scale, font, value.content))
-        .map(|(idx, _)| idx)
-        .unwrap_or(0);
-
-    let scale = get_correct_scale(
-        texts[largest_text].content,
-        naive_scale,
-        (width, height),
-        font,
-    );
-
-    texts.iter().for_each(|text| {
+    texts.iter_mut().for_each(|text| {
+        text.scale = get_correct_scale(text.content, text.scale, (width, height), font);
         draw_text_with_border(
             image,
             Rgba([255, 255, 255, 255]),
             text.position.clone(),
-            PxScale::from(100.0),
+            text.scale,
             font,
             text.content,
             Rgba([0, 0, 0, 255]),
-            (scale.x * 0.015) as u8 * opts.outline_width,
+            (text.scale.x * 0.015) as u8 * opts.outline_width,
         );
     });
 }
@@ -209,7 +199,7 @@ pub fn draw_text_with_border(
             }
         }
     }
-    text_to_draw = gaussian_blur_f32(&text_to_draw, 0.7);
+    // text_to_draw = gaussian_blur_f32(&text_to_draw, 0.7);
 
     // draw actual text on top of outline
     overlay_mut(&mut text_to_draw, &text_raw, 0, 0);
@@ -224,7 +214,8 @@ pub fn draw_text_with_border(
     overlay_mut(
         canvas,
         &text_transformed,
-        ((canvas.width() as f32 - text_transformed.width() as f32) * project_scale / 2.0) as u32,
+        // ((canvas.width() as f32 - text_transformed.width() as f32) * project_scale / 2.0) as u32,
+        0,
         (canvas.height() as f32 / 3.0 * position.clone() as u32 as f32  // <-- TODO: LMFAO WHAT IS THISSSSSSSSSSSSSSSS
             + (canvas.height() as f32 / 3.0 - text_transformed.height() as f32 * project_scale)
                 / 2.0) as u32,
