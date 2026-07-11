@@ -146,15 +146,16 @@ fn get_correct_scale(
     PxScale::from(scale - MARGIN)
 }
 
-// a modified version of:
-// https://github.com/silvia-odwyer/gdl/blob/421c8df718ad32f66275d178edec56ec653caff9/crate/src/text.rs#L23
-#[allow(clippy::too_many_arguments)]
+/// draws `text_element` on section #`row_idx`
+///
+/// the image will get broken down into `row_total` sections,
+/// each section is `canvas`.width wide and `canvas`.length / `row_total` tall
 pub fn draw_text_with_border(
     canvas: &mut RgbaImage,
     text_element: TextElement,
     outline_width: u8,
     row_idx: usize,
-    rows_total: usize,
+    row_total: usize,
 ) {
     // calculate bounding boxes
     let mut text_bbox = text_size(text_element.scale, text_element.font, text_element.content);
@@ -162,7 +163,7 @@ pub fn draw_text_with_border(
         text_bbox.0 + outline_width as u32 * 2,
         text_bbox.1 + outline_width as u32 * 2,
     );
-    let row_height = canvas.height() as f32 / rows_total as f32;
+    let row_height = canvas.height() as f32 / row_total as f32;
 
     // draw the raw text element
     let text_raw = draw_text(
@@ -175,8 +176,8 @@ pub fn draw_text_with_border(
         text_element.content,
     );
 
-    // draw the outline
-    // dilate to outline_width -> color it with outline_color -> blur for aa effect
+    // a modified version of:
+    // https://github.com/silvia-odwyer/gdl/blob/421c8df718ad32f66275d178edec56ec653caff9/crate/src/text.rs#L23
     let mut text_dilated: GrayImage = text_raw.convert();
     let mut text_to_draw = RgbaImage::new(text_bbox.0, text_bbox.1);
     dilate_mut(&mut text_dilated, Norm::LInf, outline_width);
@@ -194,7 +195,7 @@ pub fn draw_text_with_border(
     overlay_mut(&mut text_to_draw, &text_raw, 0, 0);
     let project_scale = f32::min(
         canvas.width() as f32 / text_bbox.0 as f32,
-        canvas.height() as f32 / text_bbox.1 as f32 / rows_total as f32,
+        canvas.height() as f32 / text_bbox.1 as f32 / row_total as f32,
     );
     let project_operation = Projection::scale(project_scale, project_scale);
     let text_transformed = warp(
@@ -206,7 +207,7 @@ pub fn draw_text_with_border(
     overlay_mut(
         canvas,
         &text_transformed,
-        ((canvas.width() as f32 - text_transformed.width() as f32) * project_scale / 2.0) as u32,
+        ((canvas.width() as f32 - (text_transformed.width() as f32 * project_scale)) / 2.0) as u32,
         (row_height * row_idx as f32
             + (row_height - text_transformed.height() as f32 * project_scale) / 2.0) as u32,
     );
