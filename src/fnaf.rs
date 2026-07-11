@@ -26,13 +26,14 @@ pub static FACE_PATH: LazyLock<String> =
 const DEFAULT_IMAGE: &str = "fnaf.png";
 const MARGIN: f32 = 2.0;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum TextPosition {
-    Top = 0,
-    Middle = 1,
-    Bottom = 2,
+    Top,
+    Middle,
+    Bottom,
 }
 
+#[derive(Clone, Copy)]
 pub struct TextElement<'a> {
     position: TextPosition,
     content: &'a str,
@@ -114,16 +115,15 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
         });
     }
 
-    texts.iter().for_each(|text| {
+    texts.iter().enumerate().for_each(|(idx, text)| {
         draw_text_with_border(
             image,
             Rgba([255, 255, 255, 255]),
-            text.position.clone(),
-            text.scale,
+            *text,
             font,
-            text.content,
             Rgba([0, 0, 0, 255]),
             (text.scale.x * 0.015) as u8 * opts.outline_width,
+            idx,
             texts.len(),
         );
     });
@@ -157,17 +157,19 @@ fn get_correct_scale(
 pub fn draw_text_with_border(
     canvas: &mut RgbaImage,
     color: Rgba<u8>,
-    position: TextPosition,
-    scale: PxScale,
+    text_element: TextElement,
     font: &FontRef,
-    text: &str,
     outline_color: Rgba<u8>,
     outline_width: u8,
-    rows: usize,
+    row_idx: usize,
+    rows_total: usize,
 ) {
+    let scale = text_element.scale;
+    let text = text_element.content;
     if text.trim() == "" {
         return;
     }
+
     // intialize text width / height including the needed space of the outlines
     let (text_width, text_height, canvas_width, canvas_height) = {
         let text_bbox = text_size(scale, font, text);
@@ -178,9 +180,10 @@ pub fn draw_text_with_border(
             canvas.height() as f32,
         )
     };
+    let row_height = canvas_height / rows_total as f32;
     let project_scale = f32::min(
         canvas_width / text_width,
-        canvas_height / text_height / rows as f32,
+        canvas_height / text_height / rows_total as f32,
     );
     let project_op = Projection::scale(project_scale, project_scale);
 
@@ -196,7 +199,6 @@ pub fn draw_text_with_border(
     );
 
     // dilate to outline_width -> color it with outline_color -> blur for aa effect
-    // TODO: i broke this, maybe move this after transform?
     let mut text_dilated: GrayImage = text_raw.convert();
     let mut text_to_draw = RgbaImage::new(text_width as u32, text_height as u32);
     dilate_mut(&mut text_dilated, Norm::LInf, outline_width);
@@ -224,8 +226,7 @@ pub fn draw_text_with_border(
         canvas,
         &text_transformed,
         ((canvas_width - text_transformed.width() as f32) * project_scale / 2.0) as u32,
-        (canvas_height / rows as f32 * position.clone() as u32 as f32  // <-- TODO: LMFAO WHAT IS THISSSSSSSSSSSSSSSS
-            + (canvas_height / rows as f32 - text_transformed.height() as f32 * project_scale)
-                / 2.0) as u32,
+        (row_height * row_idx as f32
+            + (row_height - text_transformed.height() as f32 * project_scale) / 2.0) as u32,
     );
 }
