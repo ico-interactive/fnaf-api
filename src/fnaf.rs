@@ -27,15 +27,7 @@ const DEFAULT_IMAGE: &str = "fnaf.png";
 const MARGIN: f32 = 2.0;
 
 #[derive(Clone, Copy)]
-pub enum TextPosition {
-    Top,
-    Middle,
-    Bottom,
-}
-
-#[derive(Clone, Copy)]
 pub struct TextElement<'a> {
-    position: TextPosition,
     content: &'a str,
     scale: PxScale,
 }
@@ -93,7 +85,6 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
     if !opts.top_text.is_empty() {
         dbg!(opts.top_text);
         texts.push(TextElement {
-            position: TextPosition::Top,
             content: opts.top_text,
             scale: get_correct_scale(opts.top_text, naive_scale, (width, height), font),
         });
@@ -101,7 +92,6 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
     if !opts.text.is_empty() {
         dbg!(opts.text);
         texts.push(TextElement {
-            position: TextPosition::Middle,
             content: opts.text,
             scale: get_correct_scale(opts.text, naive_scale, (width, height), font),
         });
@@ -109,7 +99,6 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
     if !opts.bottom_text.is_empty() {
         dbg!(opts.bottom_text);
         texts.push(TextElement {
-            position: TextPosition::Bottom,
             content: opts.bottom_text,
             scale: get_correct_scale(opts.bottom_text, naive_scale, (width, height), font),
         });
