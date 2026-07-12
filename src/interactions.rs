@@ -18,15 +18,27 @@ use tracing::{info, warn};
 
 struct GatewayHandler;
 
+struct DiscordOpts {
+    gateway_enabled: bool,
+    interaction_enabled: bool,
+}
+
 pub struct DiscordHandler {
+    config: DiscordOpts,
     verifier: Verifier,
     client: Client,
 }
 
 impl DiscordHandler {
     async fn init(&mut self) -> Result<(), Error> {
-        self.init_gateway().await?;
-        self.init_interactions().await?;
+        if env::var("GATEWAY_HANDLER").expect("env: no GATEWAY_HANDLER set") == "true" {
+            self.config.gateway_enabled = true;
+            self.init_gateway().await?;
+        }
+        if env::var("INTERACTION_HANDLER").expect("env: no INTERACTION_HANDLER set") == "true" {
+            self.config.interaction_enabled = true;
+            self.init_interactions().await?;
+        }
         Ok(())
     }
 
