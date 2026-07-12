@@ -1,5 +1,4 @@
 use axum::{
-    Error,
     body::Bytes,
     http::{HeaderMap, StatusCode},
     response::Response,
@@ -14,7 +13,7 @@ use serenity::{
     prelude::*,
 };
 use std::env;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 struct GatewayHandler;
 
@@ -30,7 +29,7 @@ pub struct DiscordHandler {
 }
 
 impl DiscordHandler {
-    async fn init(&mut self) -> Result<(), Error> {
+    async fn init(&mut self) -> Result<(), SerenityError> {
         if env::var("GATEWAY_HANDLER").expect("env: no GATEWAY_HANDLER set") == "true" {
             self.config.gateway_enabled = true;
             self.init_gateway().await?;
@@ -42,19 +41,28 @@ impl DiscordHandler {
         Ok(())
     }
 
-    async fn init_gateway(&mut self) -> Result<(), Error> {
+    async fn init_gateway(&mut self) -> Result<(), SerenityError> {
         let token = env::var("TOKEN").expect("expected TOKEN to be set in env");
         let intents = GatewayIntents::GUILD_MESSAGES
             | GatewayIntents::DIRECT_MESSAGES
+            | GatewayIntents::GUILD_INTEGRATIONS
             | GatewayIntents::MESSAGE_CONTENT;
+
+        // build client
         self.client = Client::builder(&token, intents)
             .event_handler(GatewayHandler)
             .await
-            .expect("Err creating client");
+            .expect("error creating client");
+
+        // start shard
+        if let Err(e) = self.client.start().await {
+            error!("client error: {e:?}");
+            return Err(e);
+        }
         Ok(())
     }
 
-    async fn init_interactions(&mut self) -> Result<(), Error> {
+    async fn init_interactions(&mut self) -> Result<(), SerenityError> {
         let public_key = env::var("PUBLIC_KEY").expect("expected PUBLIC_KEY to be set in env");
         self.verifier = Verifier::new(&public_key);
         Ok(())
@@ -80,7 +88,7 @@ impl DiscordHandler {
         self,
         headers: HeaderMap,
         body: Bytes,
-    ) -> Result<Response<CreateInteractionResponse>, &'static str> {
+    ) -> Result<Response<CreateInteractionResponse>, SerenityError> {
         info!("received interaction from {:?}", headers);
         let signature = headers["X-Signature-Ed25519"]
             .to_str()
@@ -91,12 +99,12 @@ impl DiscordHandler {
         let body_data: &[u8] = body.as_ref();
         if let Err(_) = self.verifier.verify(signature, timestamp, body_data) {
             warn!("could not process interaction");
-            return Err("corrupted crypto signature");
+            return Err(SerenityError::Other("could not decode payload"));
         }
         let res_body = match json::from_slice::<Interaction>(body_data).unwrap() {
             Interaction::Ping(_) => CreateInteractionResponse::Pong,
             Interaction::Command(interaction) => self.handle_command(interaction),
-            _ => return Err("could not find a handler"),
+            _ => return Err(SerenityError::Other("could not find handler")),
         };
         let response = Response::builder()
             .status(200)
