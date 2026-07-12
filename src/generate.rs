@@ -9,6 +9,15 @@ use std::{
     result::Result,
 };
 
+const SUPPORTED_IMG_FORMATS: [ImageFormat; 6] = [
+    ImageFormat::Jpeg,
+    ImageFormat::Png,
+    ImageFormat::Gif,
+    ImageFormat::WebP,
+    ImageFormat::Bmp,
+    ImageFormat::Tiff,
+];
+
 const DEFAULT_WIDTH: u32 = 510;
 const DEFAULT_HEIGHT: u32 = 510;
 
@@ -43,7 +52,7 @@ fn create_test_filetype(path: PathBuf, file_type: ImageFormat) -> Result<(), ima
 }
 
 pub async fn try_create_test_images() -> Result<(), image::ImageError> {
-    for image_format in ImageFormat::all() {
+    for image_format in SUPPORTED_IMG_FORMATS {
         let file_name = "fnaf.".to_owned() + image_format.extensions_str()[0];
         let path = Path::new(&*FACE_PATH).join(&file_name).to_path_buf();
         if let Err(e) = create_test_filetype(path, image_format) {

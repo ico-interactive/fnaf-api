@@ -1,7 +1,7 @@
 info:
   name: tiff
   type: http
-  seq: 10
+  seq: 5
 
 http:
   method: GET
