@@ -24,7 +24,24 @@ run = "cargo release"
 alias = "r"
 
 [env]
+# fnaf api
 FACE_DIR = "./faces"
 FNAF_HOST = "0.0.0.0"
 FNAF_PORT = 9638
 FNAF_ENCODER_QUALITY = "70.0"
+
+# discord gateway
+# (comments below to be set in environment or mise.local.toml)
+GATEWAY_HANDLER = false
+DISCORD_TOKEN = { required = false, redact = true }
+# DISCORD_TOKEN = ""
+
+# discord interaction api
+# (comments below to be set in environment or mise.local.toml)
+INTERACTION_HANDLER = false
+DISCORD_PUBLIC_KEY = { required = false, redact = true }
+DISCORD_CLIENT_ID = { required = false, redact = true }
+DISCORD_CLIENT_SECRET = { required = false, redact = true }
+# DISCORD_PUBLIC_KEY = ""
+# DISCORD_CLIENT_ID = ""
+# DISCORD_CLIENT_SECRET = ""

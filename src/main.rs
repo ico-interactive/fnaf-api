@@ -5,18 +5,22 @@ use axum::{
     extract::Query,
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Redirect, Response},
-    routing::get,
+    routing::{get, post},
 };
 use tokio::net::TcpListener;
 use tracing::{error, info};
 
-use crate::fnaf::{FACE_PATH, FnafOpts, try_image};
-use crate::generate::try_create_test_images;
+use crate::{
+    fnaf::{FACE_PATH, FnafOpts, try_image},
+    generate::try_create_test_images,
+    interactions::handle_request,
+};
 
 const INVALID_TEXT_ERROR: &str = "error: no text";
 
 mod fnaf;
 mod generate;
+mod interactions;
 
 #[tokio::main]
 async fn main() {
@@ -24,7 +28,8 @@ async fn main() {
     let app = Router::<()>::new()
         .route("/", get(generate))
         .route("/faces", get(get_face_options))
-        .route("/init", get(create_test_images));
+        .route("/init", get(create_test_images))
+        .route("/interactions", post(handle_request));
 
     let host = env::var("FNAF_HOST").unwrap_or("0.0.0.0".to_string());
     let port = env::var("FNAF_PORT")

@@ -2,3 +2,4 @@
 
 # docker compose overrides
 compose.override.yaml
+/mise.local.toml
