@@ -3,7 +3,6 @@ use tracing::{info, warn};
 
 use crate::fnaf::FACE_PATH;
 use std::{
-    cmp::min,
     fs,
     path::{Path, PathBuf},
     result::Result,
@@ -28,13 +27,10 @@ fn check_if_exists(path: &PathBuf) -> bool {
 
 fn create_test_filetype(path: PathBuf, file_type: ImageFormat) -> Result<(), image::ImageError> {
     if check_if_exists(&path) {
+        info!("{} exists, skipping...", path.display());
         return Ok(());
     };
-    let size = match file_type {
-        ImageFormat::Ico => [min(255, DEFAULT_WIDTH), min(255, DEFAULT_HEIGHT)],
-        _ => [DEFAULT_WIDTH, DEFAULT_HEIGHT],
-    };
-    let mut rgba = RgbaImage::new(size[0], size[1]);
+    let mut rgba = RgbaImage::new(DEFAULT_WIDTH, DEFAULT_HEIGHT);
     for p in rgba.enumerate_pixels_mut() {
         let (x, y, pixel) = p;
         pixel.0 = [
@@ -48,6 +44,7 @@ fn create_test_filetype(path: PathBuf, file_type: ImageFormat) -> Result<(), ima
         fs::remove_file(path)?;
         return Err(e);
     }
+    info!("successfully created {}", &path.display());
     Ok(())
 }
 
@@ -55,10 +52,8 @@ pub async fn try_create_test_images() -> Result<(), image::ImageError> {
     for image_format in SUPPORTED_IMG_FORMATS {
         let file_name = "fnaf.".to_owned() + image_format.extensions_str()[0];
         let path = Path::new(&*FACE_PATH).join(&file_name).to_path_buf();
-        if let Err(e) = create_test_filetype(path, image_format) {
-            warn!("could not create {}, reason: {}", file_name, e);
-        } else {
-            info!("successfully created {}", file_name)
+        if let Err(e) = create_test_filetype(path.clone(), image_format) {
+            warn!("could not create {}, reason: {}", &path.display(), e);
         }
     }
     Ok(())
