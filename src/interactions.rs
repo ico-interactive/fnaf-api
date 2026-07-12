@@ -29,7 +29,7 @@ pub struct DiscordHandler {
 }
 
 impl DiscordHandler {
-    async fn init(&mut self) -> Result<(), SerenityError> {
+    async fn init(&mut self) -> Result<(), Box<dyn Error>> {
         if env::var("GATEWAY_HANDLER").expect("env: no GATEWAY_HANDLER set") == "true" {
             self.config.gateway_enabled = true;
             self.init_gateway().await?;
@@ -41,7 +41,7 @@ impl DiscordHandler {
         Ok(())
     }
 
-    async fn init_gateway(&mut self) -> Result<(), SerenityError> {
+    async fn init_gateway(&mut self) -> Result<(), Box<dyn Error>> {
         let token = env::var("TOKEN").expect("expected TOKEN to be set in env");
         let intents = GatewayIntents::GUILD_MESSAGES
             | GatewayIntents::DIRECT_MESSAGES
@@ -62,7 +62,7 @@ impl DiscordHandler {
         Ok(())
     }
 
-    async fn init_interactions(&mut self) -> Result<(), SerenityError> {
+    async fn init_interactions(&mut self) -> Result<(), Box<dyn Error>> {
         let public_key = env::var("PUBLIC_KEY").expect("expected PUBLIC_KEY to be set in env");
         self.verifier = Verifier::new(&public_key);
         Ok(())
@@ -88,7 +88,7 @@ impl DiscordHandler {
         self,
         headers: HeaderMap,
         body: Bytes,
-    ) -> Result<Response<CreateInteractionResponse>, SerenityError> {
+    ) -> Result<Response<CreateInteractionResponse>, Box<dyn Error>> {
         info!("received interaction from {:?}", headers);
         let signature = headers["X-Signature-Ed25519"]
             .to_str()
