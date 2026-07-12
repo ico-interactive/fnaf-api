@@ -12,7 +12,7 @@ use serenity::{
     async_trait, json,
     prelude::*,
 };
-use std::env;
+use std::{env, error::Error};
 use tracing::{error, info, warn};
 
 struct GatewayHandler;
@@ -57,7 +57,7 @@ impl DiscordHandler {
         // start shard
         if let Err(e) = self.client.start().await {
             error!("client error: {e:?}");
-            return Err(e);
+            return Err(e.into());
         }
         Ok(())
     }
@@ -99,12 +99,12 @@ impl DiscordHandler {
         let body_data: &[u8] = body.as_ref();
         if let Err(_) = self.verifier.verify(signature, timestamp, body_data) {
             warn!("could not process interaction");
-            return Err(SerenityError::Other("could not decode payload"));
+            return Err("could not find handler".into());
         }
         let res_body = match json::from_slice::<Interaction>(body_data).unwrap() {
             Interaction::Ping(_) => CreateInteractionResponse::Pong,
             Interaction::Command(interaction) => self.handle_command(interaction),
-            _ => return Err(SerenityError::Other("could not find handler")),
+            _ => return Err("could not find handler".into()),
         };
         let response = Response::builder()
             .status(200)
