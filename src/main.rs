@@ -4,22 +4,27 @@ use axum::{
     Json, Router,
     extract::Query,
     http::{HeaderMap, StatusCode, header},
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     routing::get,
 };
 use tokio::net::TcpListener;
+use tracing::{error, info};
 
 use crate::fnaf::{FACE_PATH, FnafOpts, try_image};
+use crate::generate::try_create_test_images;
 
 const INVALID_TEXT_ERROR: &str = "error: no text";
 
 mod fnaf;
+mod generate;
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
     let app = Router::<()>::new()
         .route("/", get(generate))
-        .route("/faces", get(get_face_options));
+        .route("/faces", get(get_face_options))
+        .route("/init", get(create_test_images));
 
     let host = env::var("FNAF_HOST").unwrap_or("0.0.0.0".to_string());
     let port = env::var("FNAF_PORT")
@@ -27,7 +32,8 @@ async fn main() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(9638);
 
-    let listener = TcpListener::bind((host, port)).await.unwrap();
+    let listener = TcpListener::bind((host.clone(), port)).await.unwrap();
+    info!("listening to {}:{}", host, port);
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -92,10 +98,27 @@ async fn generate(Query(params): Query<HashMap<String, String>>) -> Response {
             );
             (StatusCode::OK, headers, bytes).into_response()
         }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("internal error: {e}"),
-        )
-            .into_response(),
+        Err(e) => {
+            error!("could not process image, error: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("internal error: {e}"),
+            )
+                .into_response()
+        }
+    }
+}
+
+async fn create_test_images() -> Response {
+    match try_create_test_images().await {
+        Ok(()) => Redirect::to("/").into_response(),
+        Err(e) => {
+            error!("could not create test images, error: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("internal error: {e}"),
+            )
+                .into_response()
+        }
     }
 }

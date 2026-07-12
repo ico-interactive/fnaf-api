@@ -24,7 +24,7 @@ run = "cargo release"
 alias = "r"
 
 [env]
-FACE_DIR = "/faces"
+FACE_DIR = "./faces"
 FNAF_HOST = "0.0.0.0"
 FNAF_PORT = 9638
 FNAF_ENCODER_QUALITY = "70.0"

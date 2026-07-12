@@ -1,7 +1,4 @@
 /target
 
-# fnaf images that are in the same directory
-*.png
-
 # docker compose overrides
 compose.override.yaml
