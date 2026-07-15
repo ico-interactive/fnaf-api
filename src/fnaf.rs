@@ -13,7 +13,6 @@ use imageproc::{
     compose::overlay_mut,
     distance_transform::Norm,
     drawing::{draw_text, text_size},
-    geometric_transformations::{Border, Interpolation, Projection, warp},
     morphology::dilate_mut,
 };
 
