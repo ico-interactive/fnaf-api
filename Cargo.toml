@@ -8,12 +8,16 @@ homepage = "https://github.com/ico-interactive/fnaf-api"
 repository = "https://github.com/ico-interactive/fnaf-api"
 
 [dependencies]
+serenity = { version = "0.12.5", features = [
+  "interactions_endpoint",
+  "client",
+  "gateway",
+] }
 ab_glyph = "0.2.32"
 axum = "0.8.9"
 image = "0.25.10"
 imageproc = "0.27.0"
 reqwest = "0.13.4"
-serenity = { version = "0.12.5", features = ["interactions_endpoint"] }
 tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
