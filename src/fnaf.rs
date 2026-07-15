@@ -121,10 +121,10 @@ fn get_correct_scale(
     image_size: (u32, u32),
     font: &FontRef,
 ) -> PxScale {
-    let size = text_size(scale, font, text);
-    let sizes = [size.0, size.1];
+    let text_size = text_size(scale, font, text);
+    let text_sizes = [text_size.0, text_size.1];
 
-    let largest_dim = sizes
+    let largest_dim = text_sizes
         .iter()
         .enumerate()
         .max_by_key(|&(_, v)| v)
@@ -132,19 +132,17 @@ fn get_correct_scale(
         .unwrap_or(0);
 
     if largest_dim == 0 {
-        let mut scale = PxScale::from(scale.x * image_size.0 as f32 / size.0 as f32);
-        let text_size = text_size(scale, font, text);
-        if text_size.1 > image_size.1 {
-            scale = PxScale::from(scale.y * image_size.1 as f32 / text_size.1 as f32);
+        if text_size.1 as f32 / text_size.0 as f32 > image_size.1 as f32 / image_size.0 as f32 {
+            PxScale::from(scale.y * image_size.1 as f32 / text_size.1 as f32)
+        } else {
+            PxScale::from(scale.x * image_size.0 as f32 / text_size.0 as f32)
         }
-        scale
     } else {
-        let mut scale = PxScale::from(scale.y * image_size.1 as f32 / size.1 as f32);
-        let text_size = text_size(scale, font, text);
-        if text_size.0 > image_size.0 {
-            scale = PxScale::from(scale.x * image_size.0 as f32 / text_size.0 as f32);
+        if text_size.0 as f32 / text_size.1 as f32 > image_size.0 as f32 / image_size.1 as f32 {
+            PxScale::from(scale.x * image_size.0 as f32 / text_size.0 as f32)
+        } else {
+            PxScale::from(scale.y * image_size.1 as f32 / text_size.1 as f32)
         }
-        scale
     }
 }
 
