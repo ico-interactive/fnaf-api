@@ -2,6 +2,7 @@ name: fnaf
 services:
   api:
     container_name: fnaf-api
+    image: fnaf-api:latest
     environment:
       FACE_DIR: "/faces"
       FNAF_HOST: "0.0.0.0"
