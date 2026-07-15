@@ -1,0 +1,30 @@
+[tasks.watch]
+description = "watch for changes and rebuild / rerun release"
+run = "watchexec -w src -r cargo run --release"
+alias = "w"
+
+[tasks.test_watch]
+description = "watch for changes and test"
+run = "watchexec -w src -w tests -r cargo test --release"
+alias = "t"
+
+[tasks.build]
+description = "build docker image"
+run = "docker compose build"
+
+[tasks.docker]
+description = "build and run docker image"
+depends = ["build"]
+run = "docker compose up -d"
+alias = "d"
+
+[tasks.release]
+description = "set new release version"
+run = "cargo release"
+alias = "r"
+
+[env]
+FACE_DIR = "/faces"
+FNAF_HOST = "0.0.0.0"
+FNAF_PORT = 9638
+FNAF_ENCODER_QUALITY = "70.0"

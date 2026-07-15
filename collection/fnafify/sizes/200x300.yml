@@ -1,0 +1,31 @@
+info:
+  name: 200x300
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{base_url}}?text=bbb&top_text=aaa&bottom_text=hhhhhhh&outline_width=1&url=https://picsum.photos/200/300"
+  params:
+    - name: text
+      value: bbb
+      type: query
+    - name: top_text
+      value: aaa
+      type: query
+    - name: bottom_text
+      value: hhhhhhh
+      type: query
+    - name: outline_width
+      value: "1"
+      type: query
+    - name: url
+      value: https://picsum.photos/200/300
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 1000
+  followRedirects: true
+  maxRedirects: 5

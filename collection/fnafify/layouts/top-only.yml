@@ -1,0 +1,33 @@
+info:
+  name: top-only
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{base_url}}?top_text=aaa&outline_width=1&url=https://picsum.photos/600"
+  params:
+    - name: top_text
+      value: aaa
+      type: query
+    - name: outline_width
+      value: "1"
+      type: query
+    - name: url
+      value: https://picsum.photos/600
+      type: query
+    - name: text
+      value: bbb
+      type: query
+      disabled: true
+    - name: bottom_text
+      value: hhhhhhh
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 1000
+  followRedirects: true
+  maxRedirects: 5

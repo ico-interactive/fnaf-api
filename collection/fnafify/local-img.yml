@@ -1,0 +1,36 @@
+info:
+  name: local-img
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{base_url}}?url=image.png&text=bbb&top_text=aaa&bottom_text=hhhhhhh&outline_width=1"
+  params:
+    - name: url
+      value: image.png
+      type: query
+    - name: text
+      value: bbb
+      type: query
+    - name: top_text
+      value: aaa
+      type: query
+    - name: bottom_text
+      value: hhhhhhh
+      type: query
+    - name: outline_width
+      value: "1"
+      type: query
+  auth: inherit
+
+runtime:
+  variables:
+    - name: base_url
+      value: http://127.0.0.1:9638/
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

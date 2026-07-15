@@ -8,11 +8,11 @@ use std::{
 
 use ab_glyph::{FontRef, PxScale};
 use image::ImageReader;
-use image::{DynamicImage, GenericImage, Rgba, RgbaImage};
+use image::{GrayImage, Rgba, RgbaImage, buffer::ConvertBuffer};
 use imageproc::{
     compose::overlay_mut,
     distance_transform::Norm,
-    drawing::{draw_text_mut, text_size},
+    drawing::{draw_text, text_size},
     morphology::dilate_mut,
 };
 
@@ -23,7 +23,14 @@ pub static FACE_PATH: LazyLock<String> =
     LazyLock::new(|| env::var("FACE_DIR").unwrap_or(".".to_string()));
 
 const DEFAULT_IMAGE: &str = "fnaf.png";
-const MARGIN: f32 = 2.0;
+
+pub struct TextElement<'a> {
+    content: &'a str,
+    scale: PxScale,
+    outline_color: Rgba<u8>,
+    font: &'a FontRef<'a>,
+    text_color: Rgba<u8>,
+}
 
 pub struct FnafOpts<'a> {
     pub text: &'a str,
@@ -70,71 +77,42 @@ pub async fn try_image(opts: FnafOpts<'_>) -> Result<Vec<u8>, Box<dyn Error>> {
 }
 
 fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
-    let (width, height) = image.dimensions();
-
-    let texts = [opts.text, opts.bottom_text, opts.top_text];
+    // defaults
     let naive_scale = PxScale::from(150.0);
-
-    // usize thats either 0, 1 or 2, corresponding to the index of the text which is the longest
-    let largest_text = texts
-        .iter()
-        .enumerate()
-        .max_by_key(|&(_, value)| text_size(naive_scale, font, value))
-        .map(|(idx, _)| idx)
-        .unwrap_or(0);
-
-    let scale = get_correct_scale(texts[largest_text], naive_scale, (width, height), font);
-
-    let mut text_pos: [(i32, i32); 3] = [(0, 0); 3];
-
-    let (middle_text_width, middle_text_height) = {
-        let size = text_size(scale, font, opts.text);
-        (size.0.min(width), size.1.min(height))
+    let default_text_element = TextElement {
+        text_color: Rgba([255, 255, 255, 255]),
+        outline_color: Rgba([0, 0, 0, 255]),
+        font,
+        content: "",
+        scale: naive_scale,
     };
-    text_pos[0] = (
-        ((width - middle_text_width) / 2) as i32,
-        ((height - middle_text_height) / 2) as i32,
-    );
+    let texts: Vec<&str> = [opts.top_text, opts.text, opts.bottom_text]
+        .into_iter()
+        .filter(|v| !v.is_empty())
+        .collect();
+    let divisions = texts.len();
 
-    let (text_width, text_height) = {
-        let size = text_size(scale, font, opts.bottom_text);
-        (size.0.min(width), size.1.min(height))
+    let bounding_box = {
+        let dimensions = image.dimensions();
+        (dimensions.0, dimensions.1 / divisions as u32)
     };
-    text_pos[1] = (
-        ((width - text_width) / 2) as i32,
-        if !opts.text.is_empty() {
-            text_pos[0].1 + middle_text_height as i32
-        } else {
-            (height - text_height) as i32
-        },
-    );
 
-    let (text_width, text_height) = {
-        let size = text_size(scale, font, opts.top_text);
-        (size.0.min(width), size.1.min(height))
-    };
-    text_pos[2] = (
-        ((width - text_width) / 2) as i32,
-        if !opts.text.is_empty() {
-            text_pos[0].1 - text_height as i32
-        } else {
-            0
-        },
-    );
-
-    text_pos.iter().zip(texts.iter()).for_each(|(pos, text)| {
-        draw_text_with_border(
-            image,
-            Rgba([255, 255, 255, 255]),
-            pos.0,
-            pos.1,
-            scale,
-            font,
-            text,
-            Rgba([0, 0, 0, 255]),
-            (scale.x * 0.015) as u8 * opts.outline_width,
-        );
-    });
+    texts.into_iter().enumerate().for_each(|(idx, text)| {
+        if !text.is_empty() {
+            let text_element = TextElement {
+                content: text,
+                scale: get_correct_scale(text, naive_scale, bounding_box, font),
+                ..default_text_element
+            };
+            draw_text_with_border(
+                image,
+                &text_element,
+                (text_element.scale.x * 0.015) as u8 * opts.outline_width,
+                idx as u32,
+                divisions as u32,
+            );
+        }
+    })
 }
 
 fn get_correct_scale(
@@ -145,59 +123,76 @@ fn get_correct_scale(
 ) -> PxScale {
     let size = text_size(scale, font, text);
     let sizes = [size.0, size.1];
+
     let largest_dim = sizes
         .iter()
         .enumerate()
         .max_by_key(|&(_, v)| v)
         .map(|(idx, _)| idx)
         .unwrap_or(0);
-    let scale = if largest_dim == 0 {
-        scale.x * image_size.0 as f32 / size.0 as f32
+
+    if largest_dim == 0 {
+        let mut scale = PxScale::from(scale.x * image_size.0 as f32 / size.0 as f32);
+        let text_size = text_size(scale, font, text);
+        if text_size.1 > image_size.1 {
+            scale = PxScale::from(scale.y * image_size.1 as f32 / text_size.1 as f32);
+        }
+        scale
     } else {
-        scale.y * image_size.1 as f32 / size.1 as f32
-    };
-    PxScale::from(scale - MARGIN)
+        let mut scale = PxScale::from(scale.y * image_size.1 as f32 / size.1 as f32);
+        let text_size = text_size(scale, font, text);
+        if text_size.0 > image_size.0 {
+            scale = PxScale::from(scale.x * image_size.0 as f32 / text_size.0 as f32);
+        }
+        scale
+    }
 }
 
-// a modified version of:
-// https://github.com/silvia-odwyer/gdl/blob/421c8df718ad32f66275d178edec56ec653caff9/crate/src/text.rs#L23
-#[allow(clippy::too_many_arguments)]
+/// draws `text_element` on section #`row_idx`
+///
+/// the image will get broken down into `row_total` sections,
+/// each section is `canvas`.width wide and `canvas`.length / `row_total` tall
 pub fn draw_text_with_border(
     canvas: &mut RgbaImage,
-    color: Rgba<u8>,
-    x: i32,
-    y: i32,
-    scale: PxScale,
-    font: &FontRef,
-    text: &str,
-    outline_color: Rgba<u8>,
+    text_element: &TextElement,
     outline_width: u8,
+    row_idx: u32,
+    row_total: u32,
 ) {
-    let mut image2: DynamicImage = DynamicImage::new_luma8(canvas.width(), canvas.height());
+    let row_height = canvas.height() / row_total;
+    let text_size = text_size(text_element.scale, text_element.font, text_element.content);
 
-    draw_text_mut(&mut image2, color, x, y, scale, font, text);
+    // draw the raw text element
+    let text_raw = draw_text(
+        &RgbaImage::new(text_size.0, text_size.1),
+        text_element.text_color,
+        outline_width as i32,
+        outline_width as i32,
+        text_element.scale,
+        text_element.font,
+        text_element.content,
+    );
 
-    let mut image2 = image2.to_luma8();
-    dilate_mut(&mut image2, Norm::LInf, outline_width);
-
-    let mut precanvas = DynamicImage::new_rgba8(canvas.width(), canvas.height());
-
-    for x in 0..image2.width() {
-        for y in 0..image2.height() {
-            let pixval = 255 - image2.get_pixel(x, y).0[0];
+    // a modified version of:
+    // https://github.com/silvia-odwyer/gdl/blob/421c8df718ad32f66275d178edec56ec653caff9/crate/src/text.rs#L23
+    let mut text_dilated: GrayImage = text_raw.convert();
+    let mut text_to_draw = RgbaImage::new(text_size.0, text_size.1);
+    dilate_mut(&mut text_dilated, Norm::LInf, outline_width);
+    for x in 0..text_dilated.width() {
+        for y in 0..text_dilated.height() {
+            let pixval = 255 - text_dilated.get_pixel(x, y).0[0];
             if pixval != 255 {
-                precanvas.put_pixel(x, y, outline_color);
+                text_to_draw.put_pixel(x, y, text_element.outline_color);
             }
         }
     }
 
-    precanvas = precanvas.blur(0.7);
+    overlay_mut(&mut text_to_draw, &text_raw, 0, 0);
 
-    draw_text_mut(&mut precanvas, color, x, y, scale, font, text);
     overlay_mut(
         canvas,
-        precanvas.as_rgba8().expect("precanvas to be rgba8"),
-        0,
-        0,
+        &text_to_draw,
+        canvas.width() / 2 - text_to_draw.width() / 2,
+        row_height * row_idx + (row_height - text_to_draw.height()) / 2,
     );
 }
