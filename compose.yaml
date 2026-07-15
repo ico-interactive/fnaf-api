@@ -15,8 +15,15 @@ services:
         - APP_NAME=fnaf-api
     # ports:
     #   - "9638:9638"
+    networks:
+      - proxy
     volumes:
       - faces:/faces
+
+networks:
+  proxy:
+    external: true
+    name: caddy
 
 volumes:
   faces:
