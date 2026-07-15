@@ -26,7 +26,6 @@ pub static FACE_PATH: LazyLock<String> =
 const DEFAULT_IMAGE: &str = "fnaf.png";
 const MARGIN: f32 = 2.0;
 
-#[derive(Clone, Copy)]
 pub struct TextElement<'a> {
     content: &'a str,
     scale: PxScale,
@@ -90,7 +89,7 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
         scale: naive_scale,
     };
 
-    let mut texts: Vec<TextElement> = Vec::new();
+    let mut texts: Vec<TextElement> = Vec::with_capacity(3);
     if !opts.top_text.is_empty() {
         texts.push(TextElement {
             content: opts.top_text,
@@ -116,10 +115,10 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
     texts.iter().enumerate().for_each(|(idx, text)| {
         draw_text_with_border(
             image,
-            *text,
+            text,
             (text.scale.x * 0.015) as u8 * opts.outline_width,
-            idx,
-            texts.len(),
+            idx as u32,
+            texts.len() as u32,
         );
     });
 }
@@ -152,18 +151,21 @@ fn get_correct_scale(
 /// each section is `canvas`.width wide and `canvas`.length / `row_total` tall
 pub fn draw_text_with_border(
     canvas: &mut RgbaImage,
-    text_element: TextElement,
+    text_element: &TextElement,
     outline_width: u8,
-    row_idx: usize,
-    row_total: usize,
+    row_idx: u32,
+    row_total: u32,
 ) {
     // calculate bounding boxes
-    let mut text_bbox = text_size(text_element.scale, text_element.font, text_element.content);
-    text_bbox = (
-        text_bbox.0 + outline_width as u32 * 2,
-        text_bbox.1 + outline_width as u32 * 2,
-    );
-    let row_height = canvas.height() as f32 / row_total as f32;
+    let text_bbox = {
+        let size = text_size(text_element.scale, text_element.font, text_element.content);
+        (
+            size.0 + outline_width as u32 * 2,
+            size.1 + outline_width as u32 * 2,
+        )
+    };
+
+    let row_height = canvas.height() / row_total;
 
     // draw the raw text element
     let text_raw = draw_text(
@@ -193,10 +195,10 @@ pub fn draw_text_with_border(
 
     // scale text_object and overlay on canvas
     overlay_mut(&mut text_to_draw, &text_raw, 0, 0);
-    let project_scale = f32::min(
-        canvas.width() as f32 / text_bbox.0 as f32,
-        canvas.height() as f32 / text_bbox.1 as f32 / row_total as f32,
-    );
+
+    let project_scale = (canvas.width() as f32 / text_bbox.0 as f32)
+        .min(canvas.height() as f32 / text_bbox.1 as f32 / row_total as f32);
+
     let project_operation = Projection::scale(project_scale, project_scale);
     let text_transformed = warp(
         &text_to_draw,
@@ -207,8 +209,8 @@ pub fn draw_text_with_border(
     overlay_mut(
         canvas,
         &text_transformed,
-        ((canvas.width() as f32 - (text_transformed.width() as f32 * project_scale)) / 2.0) as u32,
-        (row_height * row_idx as f32
-            + (row_height - text_transformed.height() as f32 * project_scale) / 2.0) as u32,
+        (canvas.width() - (text_transformed.width() as f32 * project_scale) as u32) / 2,
+        row_height * row_idx
+            + (row_height - (text_transformed.height() as f32 * project_scale) as u32) / 2,
     );
 }
