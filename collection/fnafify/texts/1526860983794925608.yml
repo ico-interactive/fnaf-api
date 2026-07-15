@@ -1,0 +1,32 @@
+info:
+  name: "1526860983794925608"
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: "{{base_url}}?top_text=help me bro&bottom_text=i am a fugitive in 35 states including&outline_width=1&url=https://picsum.photos/600"
+  params:
+    - name: top_text
+      value: help me bro
+      type: query
+    - name: text
+      value: bbb
+      type: query
+      disabled: true
+    - name: bottom_text
+      value: i am a fugitive in 35 states including
+      type: query
+    - name: outline_width
+      value: "1"
+      type: query
+    - name: url
+      value: https://picsum.photos/600
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 1000
+  followRedirects: true
+  maxRedirects: 5
