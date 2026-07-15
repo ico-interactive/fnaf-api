@@ -23,7 +23,6 @@ pub static FACE_PATH: LazyLock<String> =
     LazyLock::new(|| env::var("FACE_DIR").unwrap_or(".".to_string()));
 
 const DEFAULT_IMAGE: &str = "fnaf.png";
-const MARGIN: f32 = 0.0;
 
 pub struct TextElement<'a> {
     content: &'a str,
@@ -132,32 +131,20 @@ fn get_correct_scale(
         .map(|(idx, _)| idx)
         .unwrap_or(0);
 
-    let scale = if largest_dim == 0 {
-        scale.x * image_size.0 as f32 / size.0 as f32
+    if largest_dim == 0 {
+        let mut scale = PxScale::from(scale.x * image_size.0 as f32 / size.0 as f32);
+        let text_size = text_size(scale, font, text);
+        if text_size.1 > image_size.1 {
+            scale = PxScale::from(scale.y * image_size.1 as f32 / text_size.1 as f32);
+        }
+        scale
     } else {
-        scale.y * image_size.1 as f32 / size.1 as f32
-    };
-
-    let new_scale = PxScale::from(scale - MARGIN);
-    let new_text_size = text_size(new_scale, font, text);
-
-    match largest_dim {
-        // todo: i sure wish there was a better way to do this
-        0 => {
-            if new_text_size.1 > image_size.1 {
-                PxScale::from(new_scale.y * image_size.1 as f32 / new_text_size.1 as f32 - MARGIN)
-            } else {
-                new_scale
-            }
+        let mut scale = PxScale::from(scale.y * image_size.1 as f32 / size.1 as f32);
+        let text_size = text_size(scale, font, text);
+        if text_size.0 > image_size.0 {
+            scale = PxScale::from(scale.x * image_size.0 as f32 / text_size.0 as f32);
         }
-        1 => {
-            if new_text_size.0 > image_size.0 {
-                PxScale::from(new_scale.x * image_size.0 as f32 / new_text_size.0 as f32 - MARGIN)
-            } else {
-                new_scale
-            }
-        }
-        _ => unreachable!(),
+        scale
     }
 }
 
