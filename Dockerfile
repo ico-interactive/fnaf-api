@@ -1,31 +1,33 @@
+# defaults
 ARG RUST_VER=1.96.0
 ARG APP_NAME=fnaf-api
+ARG UID=10001
+
+FROM rust:${RUST_VER}-alpine3.24 AS fetch_apk
+WORKDIR /app
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk add --update-cache clang lld musl-dev git
+
+FROM fetch_apk AS fetch_cargo
+COPY Cargo.toml Cargo.lock .
+RUN mkdir src; touch src/main.rs
+RUN --mount=type=cache,target=/usr/local/cargo/git/db \   
+    --mount=type=cache,target=/usr/local/cargo/registry/ \
+    cargo fetch --locked
 
 # build
-FROM rust:${RUST_VER}-alpine3.24 AS build
-
+FROM fetch_cargo AS build
 ARG APP_NAME
-
-WORKDIR /app
-
-RUN apk add --no-cache clang lld musl-dev git
-
-RUN --mount=type=bind,source=src,target=src \
-    --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
-    --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
-    --mount=type=bind,source=NotoSerifDisplay.otf,target=NotoSerifDisplay.otf \
-    --mount=type=cache,target=/app/target/ \
-    --mount=type=cache,target=/usr/local/cargo/git/db \
+COPY . .
+RUN --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
-    cargo build --locked --release && \
+    --mount=type=cache,target=/usr/local/cargo/git/db \   
+    cargo build --frozen --release && \
     cp "./target/release/$APP_NAME" /bin/server
 
-# run
-FROM alpine:3.24.1 AS final
-ARG APP_NAME
-
-# non privileged user
-ARG UID=10001
+# setup non privileged user
+FROM alpine:3.24.1 AS setup
+ARG UID
 RUN adduser \
     --disabled-password \
     --gecos "" \
@@ -34,12 +36,11 @@ RUN adduser \
     --no-create-home \
     --uid "${UID}" \
     appuser
-
-# enter user
 USER appuser
-
 COPY --from=build /bin/server /bin
 
+# run
+FROM setup AS prod
 EXPOSE 9638
-
 CMD ["server"]
+

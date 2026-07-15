@@ -7,11 +7,15 @@ services:
       FNAF_HOST: "0.0.0.0"
       FNAF_PORT: "9638"
       FNAF_ENCODER_QUALITY: "70.0"
+    build:
+      args:
+        - RUST_VER=1.96.0
+        - UID=10001
+        - APP_NAME=fnaf-api
+    # ports:
+    #   - "9638:9638"
     volumes:
       - faces:/faces
-    build:
-      tags:
-        - fnaf-api:0.3.0
 
 volumes:
   faces:

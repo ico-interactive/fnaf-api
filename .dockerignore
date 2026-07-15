@@ -1,0 +1,14 @@
+*md
+
+# rust
+/target
+/tests
+/faces
+/collection
+
+# nix
+*nix
+.envrc
+
+# mise
+mise.toml
