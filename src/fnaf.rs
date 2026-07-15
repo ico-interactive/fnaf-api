@@ -24,7 +24,7 @@ pub static FACE_PATH: LazyLock<String> =
     LazyLock::new(|| env::var("FACE_DIR").unwrap_or(".".to_string()));
 
 const DEFAULT_IMAGE: &str = "fnaf.png";
-const MARGIN: f32 = 2.0;
+const MARGIN: f32 = 0.0;
 
 pub struct TextElement<'a> {
     content: &'a str,
@@ -88,39 +88,33 @@ fn add_text(image: &mut RgbaImage, font: &FontRef, opts: FnafOpts) {
         content: "",
         scale: naive_scale,
     };
+    let texts: Vec<&str> = [opts.top_text, opts.text, opts.bottom_text]
+        .into_iter()
+        .filter(|v| !v.is_empty())
+        .collect();
+    let divisions = texts.len();
 
-    let mut texts: Vec<TextElement> = Vec::with_capacity(3);
-    if !opts.top_text.is_empty() {
-        texts.push(TextElement {
-            content: opts.top_text,
-            scale: get_correct_scale(opts.top_text, naive_scale, image.dimensions(), font),
-            ..default_text_element
-        });
-    }
-    if !opts.text.is_empty() {
-        texts.push(TextElement {
-            content: opts.text,
-            scale: get_correct_scale(opts.text, naive_scale, image.dimensions(), font),
-            ..default_text_element
-        });
-    }
-    if !opts.bottom_text.is_empty() {
-        texts.push(TextElement {
-            content: opts.bottom_text,
-            scale: get_correct_scale(opts.bottom_text, naive_scale, image.dimensions(), font),
-            ..default_text_element
-        });
-    }
+    let bounding_box = {
+        let dimensions = image.dimensions();
+        (dimensions.0, dimensions.1 / divisions as u32)
+    };
 
-    texts.iter().enumerate().for_each(|(idx, text)| {
-        draw_text_with_border(
-            image,
-            text,
-            (text.scale.x * 0.015) as u8 * opts.outline_width,
-            idx as u32,
-            texts.len() as u32,
-        );
-    });
+    texts.into_iter().enumerate().for_each(|(idx, text)| {
+        if !text.is_empty() {
+            let text_element = TextElement {
+                content: text,
+                scale: get_correct_scale(text, naive_scale, bounding_box, font),
+                ..default_text_element
+            };
+            draw_text_with_border(
+                image,
+                &text_element,
+                (text_element.scale.x * 0.015) as u8 * opts.outline_width,
+                idx as u32,
+                divisions as u32,
+            );
+        }
+    })
 }
 
 fn get_correct_scale(
@@ -131,18 +125,41 @@ fn get_correct_scale(
 ) -> PxScale {
     let size = text_size(scale, font, text);
     let sizes = [size.0, size.1];
+
     let largest_dim = sizes
         .iter()
         .enumerate()
         .max_by_key(|&(_, v)| v)
         .map(|(idx, _)| idx)
         .unwrap_or(0);
+
     let scale = if largest_dim == 0 {
         scale.x * image_size.0 as f32 / size.0 as f32
     } else {
         scale.y * image_size.1 as f32 / size.1 as f32
     };
-    PxScale::from(scale - MARGIN)
+
+    let new_scale = PxScale::from(scale - MARGIN);
+    let new_text_size = text_size(new_scale, font, text);
+
+    match largest_dim {
+        // todo: i sure wish there was a better way to do this
+        0 => {
+            if new_text_size.1 > image_size.1 {
+                PxScale::from(new_scale.y * image_size.1 as f32 / new_text_size.1 as f32 - MARGIN)
+            } else {
+                new_scale
+            }
+        }
+        1 => {
+            if new_text_size.0 > image_size.0 {
+                PxScale::from(new_scale.x * image_size.0 as f32 / new_text_size.0 as f32 - MARGIN)
+            } else {
+                new_scale
+            }
+        }
+        _ => unreachable!(),
+    }
 }
 
 /// draws `text_element` on section #`row_idx`
@@ -156,20 +173,12 @@ pub fn draw_text_with_border(
     row_idx: u32,
     row_total: u32,
 ) {
-    // calculate bounding boxes
-    let text_bbox = {
-        let size = text_size(text_element.scale, text_element.font, text_element.content);
-        (
-            size.0 + outline_width as u32 * 2,
-            size.1 + outline_width as u32 * 2,
-        )
-    };
-
     let row_height = canvas.height() / row_total;
+    let text_size = text_size(text_element.scale, text_element.font, text_element.content);
 
     // draw the raw text element
     let text_raw = draw_text(
-        &RgbaImage::new(text_bbox.0, text_bbox.1),
+        &RgbaImage::new(text_size.0, text_size.1),
         text_element.text_color,
         outline_width as i32,
         outline_width as i32,
@@ -181,7 +190,7 @@ pub fn draw_text_with_border(
     // a modified version of:
     // https://github.com/silvia-odwyer/gdl/blob/421c8df718ad32f66275d178edec56ec653caff9/crate/src/text.rs#L23
     let mut text_dilated: GrayImage = text_raw.convert();
-    let mut text_to_draw = RgbaImage::new(text_bbox.0, text_bbox.1);
+    let mut text_to_draw = RgbaImage::new(text_size.0, text_size.1);
     dilate_mut(&mut text_dilated, Norm::LInf, outline_width);
     for x in 0..text_dilated.width() {
         for y in 0..text_dilated.height() {
@@ -191,26 +200,13 @@ pub fn draw_text_with_border(
             }
         }
     }
-    // text_to_draw = gaussian_blur_f32(&text_to_draw, 0.7);
 
-    // scale text_object and overlay on canvas
     overlay_mut(&mut text_to_draw, &text_raw, 0, 0);
 
-    let project_scale = (canvas.width() as f32 / text_bbox.0 as f32)
-        .min(canvas.height() as f32 / text_bbox.1 as f32 / row_total as f32);
-
-    let project_operation = Projection::scale(project_scale, project_scale);
-    let text_transformed = warp(
-        &text_to_draw,
-        project_operation,
-        Interpolation::Bicubic,
-        Border::Constant(Rgba([0; 4])),
-    );
     overlay_mut(
         canvas,
-        &text_transformed,
-        (canvas.width() - (text_transformed.width() as f32 * project_scale) as u32) / 2,
-        row_height * row_idx
-            + (row_height - (text_transformed.height() as f32 * project_scale) as u32) / 2,
+        &text_to_draw,
+        canvas.width() / 2 - text_to_draw.width() / 2,
+        row_height * row_idx + (row_height - text_to_draw.height()) / 2,
     );
 }

@@ -24,6 +24,11 @@ http:
       type: query
   auth: inherit
 
+runtime:
+  variables:
+    - name: base_url
+      value: http://127.0.0.1:9638/
+
 settings:
   encodeUrl: true
   timeout: 0
