@@ -18,7 +18,7 @@ services:
     networks:
       - proxy
     volumes:
-      - faces:/faces
+      - ./faces:/faces
 
 networks:
   proxy:
